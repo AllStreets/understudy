@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Before and after, three directions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Inter+Tight:wght@400;500;600&family=Instrument+Serif:ital@0;1&family=Archivo:wght@400;500;600&family=Archivo+Narrow:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root { --page:#e9e6df; --ink:#1b1a17; --mute:#6b675f; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--page); color:var(--ink); font:15px/1.5 "Inter Tight", system-ui, sans-serif; }
+  .intro { max-width:1180px; margin:0 auto; padding:40px 24px 8px; }
+  .intro h1 { font:400 34px/1.15 "Newsreader", serif; margin:0 0 8px; letter-spacing:-0.01em; }
+  .intro p { margin:0; color:var(--mute); max-width:760px; }
+  .concept { max-width:1180px; margin:32px auto 56px; padding:0 24px; cursor:pointer; }
+  .concept > .label { display:flex; align-items:baseline; gap:12px; margin:0 0 12px; }
+  .concept > .label b { font:500 20px "Newsreader", serif; }
+  .concept > .label span { color:var(--mute); }
+  .concept > .label .pick { margin-left:auto; font-size:13px; color:var(--mute); border-bottom:1px solid currentColor; }
+  .concept.selected > .label .pick { color:#a3271c; }
+  .concept.selected > .frame { outline:2px solid #a3271c; outline-offset:6px; }
+  .frame { border-radius:6px; overflow:hidden; box-shadow:0 1px 0 rgba(0,0,0,.06), 0 18px 40px -24px rgba(0,0,0,.35); }
+  img { display:block; width:100%; height:auto; }
+
+  /* ---------- A. Prompt book ---------- */
+  .a { background:#f4efe4; color:#24211b; display:grid; grid-template-columns:1fr 300px; min-height:720px;
+       background-image:linear-gradient(90deg, transparent 0 calc(100% - 301px), #d9cdb4 calc(100% - 301px) calc(100% - 300px), transparent 0); }
+  .a .page { padding:36px 40px 40px 56px; position:relative; }
+  .a .page::before { content:""; position:absolute; left:28px; top:0; bottom:0; width:1px; background:#d48c7c; opacity:.6; }
+  .a .head { display:flex; align-items:baseline; justify-content:space-between; border-bottom:1px solid #cfc3a8; padding-bottom:10px; margin-bottom:24px; }
+  .a .head h2 { font:400 30px/1 "Newsreader", serif; margin:0; }
+  .a .head small { font:italic 15px "Newsreader", serif; color:#7a6f5c; }
+  .a .plates { display:grid; grid-template-columns:1fr 1fr; gap:28px; align-items:start; }
+  .a figure { margin:0; position:relative; }
+  .a figure .photo { background:#fff; padding:8px 8px 10px; box-shadow:0 1px 2px rgba(60,40,10,.18), 0 10px 22px -14px rgba(60,40,10,.4); height:430px; overflow:hidden; }
+  .a figure:first-child .photo { transform:rotate(-0.6deg); }
+  .a figure:last-child .photo { transform:rotate(0.4deg); }
+  .a figure .photo img { height:100%; object-fit:cover; object-position:top; }
+  .a figcaption { font:italic 15px "Newsreader", serif; color:#5d5446; margin-top:12px; }
+  .a .mark { position:absolute; width:26px; height:26px; border:1.5px solid #b4321f; border-radius:50%; color:#b4321f; font:500 14px/23px "Newsreader", serif; text-align:center; background:rgba(244,239,228,.85); }
+  .a .ring { position:absolute; border:1.5px solid #b4321f; border-radius:46% 54% 50% 50%; opacity:.85; }
+  .a .margin { padding:36px 26px; display:flex; flex-direction:column; gap:22px; }
+  .a .margin h3 { font:500 13px "Inter Tight"; color:#7a6f5c; margin:0; letter-spacing:.01em; }
+  .a .note { font:16px/1.45 "Newsreader", serif; color:#2e2a22; }
+  .a .note .n { color:#b4321f; font-weight:500; margin-right:6px; }
+  .a .note q { display:block; margin-top:6px; font-style:italic; color:#8a3a2c; quotes:"\201C" "\201D"; }
+  .a .note cite { display:block; font:12.5px "Inter Tight"; font-style:normal; color:#8b806c; margin-top:4px; }
+  .a .note.own { color:#5d5446; }
+  .a .acts { margin-top:auto; display:flex; gap:10px; }
+  .a .acts button { white-space:nowrap; font:500 14px "Inter Tight"; padding:9px 14px; border-radius:3px; border:1px solid #2e2a22; background:transparent; color:#2e2a22; cursor:pointer; }
+  .a .acts button.primary { background:#2e2a22; color:#f4efe4; }
+
+  /* ---------- B. Ghost light ---------- */
+  .b { background:#151311; color:#e8e1d4; padding:28px 32px 32px; }
+  .b .top { display:flex; align-items:baseline; gap:18px; margin-bottom:20px; }
+  .b .top h2 { font:400 28px/1 "Instrument Serif", serif; margin:0; }
+  .b .top span { color:#9c9385; font-size:14px; }
+  .b .top .verdict { margin-left:auto; font-size:14px; color:#d9b56a; display:flex; align-items:center; gap:8px; }
+  .b .top .verdict i { width:8px; height:8px; background:#d9b56a; transform:rotate(45deg); display:none; }
+  .b .top .verdict::before { content:""; width:7px; height:7px; border-radius:50%; background:#d9b56a; }
+  .b .stage { position:relative; height:520px; overflow:hidden; border-radius:3px; background:#0d0c0b; user-select:none; }
+  .b .stage .layer { position:absolute; inset:0; }
+  .b .stage .layer img { width:100%; height:auto; }
+  .b .stage .after { clip-path:inset(0 0 0 var(--x,50%)); background:#fff; }
+  .b .stage .after img { width:89.8%; margin:1.2% 0 0 4.3%; }
+  .b .stage .bar { position:absolute; top:0; bottom:0; left:var(--x,50%); width:1px; background:#e8e1d4; }
+  .b .stage .bar::after { content:""; position:absolute; top:50%; left:-14px; width:28px; height:28px; border-radius:50%; border:1px solid #e8e1d4; background:#151311; }
+  .b .stage .tag { position:absolute; top:14px; font-size:13px; padding:4px 9px; background:rgba(21,19,17,.86); border-radius:2px; }
+  .b .stage .tag.l { left:14px; } .b .stage .tag.r { right:14px; }
+  .b .notes { display:grid; grid-template-columns:1fr 1fr 1fr; gap:0; margin-top:24px; border-top:1px solid #39342d; }
+  .b .notes > div { padding:16px 20px 4px 0; }
+  .b .notes > div + div { padding-left:20px; border-left:1px solid #39342d; }
+  .b .notes h4 { font:400 19px/1.25 "Instrument Serif", serif; margin:0 0 8px; color:#f2ece1; }
+  .b .notes p { margin:0; color:#b3aa9b; font-size:14px; }
+  .b .notes cite { display:block; font-style:normal; color:#8a8174; font-size:12.5px; margin-top:8px; }
+  .b .foot { display:flex; gap:12px; margin-top:22px; align-items:center; }
+  .b .foot button { font:500 14px "Inter Tight"; padding:9px 16px; border-radius:2px; border:1px solid #5a5248; background:transparent; color:#e8e1d4; cursor:pointer; }
+  .b .foot button.primary { background:#e8e1d4; color:#151311; border-color:#e8e1d4; }
+  .b .foot span { margin-left:auto; color:#8a8174; font-size:13px; }
+
+  /* ---------- C. Cue sheet ---------- */
+  .c { background:#fbfbf9; color:#121212; font-family:"Archivo", sans-serif; }
+  .c .bar { display:flex; align-items:center; gap:22px; padding:14px 24px; border-bottom:1px solid #121212; }
+  .c .bar h2 { font:600 17px "Archivo"; margin:0; }
+  .c .bar .where { color:#5f5f5a; font-size:14px; }
+  .c .cues { margin-left:auto; display:flex; align-items:center; gap:0; font:500 13px "Archivo Narrow"; }
+  .c .cue { display:flex; align-items:center; gap:7px; padding:0 14px; color:#5f5f5a; }
+  .c .cue + .cue { border-left:1px solid #d6d6d0; }
+  .c .cue i { width:9px; height:9px; border:1.5px solid currentColor; border-radius:50%; }
+  .c .cue.done i { background:#121212; border-color:#121212; }
+  .c .cue.done { color:#121212; }
+  .c .cue.go { color:#c2410c; } .c .cue.go i { background:#c2410c; border-color:#c2410c; }
+  .c .body { display:grid; grid-template-columns:1fr 1fr 340px; }
+  .c .col { border-right:1px solid #d6d6d0; }
+  .c .col .h { display:flex; justify-content:space-between; padding:10px 16px; font-size:13px; color:#5f5f5a; border-bottom:1px solid #d6d6d0; }
+  .c .col .h b { color:#121212; font-weight:600; }
+  .c .col .shot { height:520px; overflow:hidden; padding:14px; background:#f1f1ec; }
+  .c .col .shot img { box-shadow:0 0 0 1px #d6d6d0; object-fit:cover; object-position:top; }
+  .c table { width:100%; border-collapse:collapse; font-size:14px; }
+  .c td { vertical-align:top; padding:12px 14px; border-bottom:1px solid #e3e3de; }
+  .c td.k { width:40px; font:600 13px "Archivo Narrow"; color:#c2410c; padding-right:0; }
+  .c td.k.own { color:#5f5f5a; }
+  .c td p { margin:0 0 4px; }
+  .c td small { color:#6f6f69; display:block; }
+  .c .side .h { padding:10px 14px; font-size:13px; color:#5f5f5a; border-bottom:1px solid #121212; display:flex; justify-content:space-between; }
+  .c .side .diff { padding:12px 14px; font-size:13px; color:#3d3d39; border-bottom:1px solid #e3e3de; }
+  .c .side .diff b { font-weight:600; color:#121212; }
+  .c .side .diff .add { color:#2f6d36; } .c .side .diff .del { color:#a3271c; }
+  .c .side .acts { display:flex; gap:8px; padding:14px; }
+  .c .side .acts button { flex:1; font:600 14px "Archivo"; padding:10px; border:1px solid #121212; background:#fff; cursor:pointer; }
+  .c .side .acts button.primary { background:#121212; color:#fff; }
+</style>
+</head>
+<body>
+<div class="intro">
+  <h1>The before and after screen, three directions</h1>
+  <p>Same real example in all three. The before is the screenshot from your Oct 15 session, right before you said the cards "scream AI generated." The after is your live GitHub profile today. Click the one that feels closest; mixing parts is fine.</p>
+</div>
+
+<div class="options">
+<!-- A -->
+<section class="concept option" data-choice="prompt-book" onclick="toggleSelect(this)">
+  <div class="label"><b>A. Prompt book</b><span>A stage manager's marked-up script. Warm paper, pasted-in prints, red pencil in the margin.</span><span class="pick">Pick this</span></div>
+  <div class="frame a">
+    <div class="page">
+      <div class="head"><h2>Profile README, Selected work</h2><small>Pass 3 of 3, held at your bar</small></div>
+      <div class="plates">
+        <figure>
+          <div class="photo"><img src="before.jpg" alt="Before: project cards"></div>
+          <span class="ring" style="left:4%;top:43%;width:94%;height:22%"></span>
+          <span class="mark" style="left:-14px;top:46%">1</span>
+          <span class="mark" style="right:-12px;top:61%">2</span>
+          <figcaption>As the agent left it.</figcaption>
+        </figure>
+        <figure>
+          <div class="photo"><img src="after.png" alt="After: two-column table"></div>
+          <figcaption>After Understudy's fixes.</figcaption>
+        </figure>
+      </div>
+    </div>
+    <aside class="margin">
+      <h3>Notes</h3>
+      <div class="note"><span class="n">1</span>Every project sits in the same rounded card with a row of pill tags.
+        <q>I don't like the cards, they scream AI generated.</q><cite>You, Oct 15, on this same page</cite></div>
+      <div class="note"><span class="n">2</span>Only a Visit link; the code is missing.
+        <q>We absolutely need the code links.</q><cite>You, Oct 15</cite></div>
+      <div class="note own"><span class="n">3</span>Image and text sit in separate boxes, so each project reads as two objects.<cite>Understudy's own note, no past judgment behind it</cite></div>
+      <div class="acts"><button class="primary">Keep it</button><button>Undo fix</button><button>Not quite</button></div>
+    </aside>
+  </div>
+</section>
+
+<!-- B -->
+<section class="concept option" data-choice="ghost-light" onclick="toggleSelect(this)">
+  <div class="label"><b>B. Ghost light</b><span>A dark stage, one picture, a wipe you drag to compare. Notes read like a director's notes session.</span><span class="pick">Pick this</span></div>
+  <div class="frame b">
+    <div class="top"><h2>Profile README</h2><span>Selected work, three passes</span><div class="verdict">Meets your bar</div></div>
+    <div class="stage" id="stage" style="--x:50%">
+      <div class="layer"><img src="before.jpg" alt="Before"></div>
+      <div class="layer after"><img src="after.png" alt="After"></div>
+      <div class="bar"></div>
+      <span class="tag l">Before</span><span class="tag r">After</span>
+    </div>
+    <div class="notes">
+      <div><h4>The cards read as generated.</h4><p>Identical rounded cards with pill tags, replaced by a two-column table.</p><cite>"They scream AI generated." You, Oct 15</cite></div>
+      <div><h4>Code links were missing.</h4><p>Each project now has Live and Code side by side.</p><cite>"We absolutely need the code links." You, Oct 15</cite></div>
+      <div><h4>Image and text split apart.</h4><p>The picture and its text now share one cell.</p><cite>Understudy's own note, not from you</cite></div>
+    </div>
+    <div class="foot"><button class="primary">Keep it</button><button>Undo fix</button><button>Not quite</button><span>Drag across the picture to compare</span></div>
+  </div>
+</section>
+
+<!-- C -->
+<section class="concept option" data-choice="cue-sheet" onclick="toggleSelect(this)">
+  <div class="label"><b>C. Cue sheet</b><span>A stage manager's running sheet. Bright, exact, every pass shown as a cue that fired.</span><span class="pick">Pick this</span></div>
+  <div class="frame c">
+    <div class="bar"><h2>Profile README</h2><span class="where">AllStreets/AllStreets, Selected work</span>
+      <div class="cues"><span class="cue done"><i></i>Judged</span><span class="cue done"><i></i>Fix 1</span><span class="cue done"><i></i>Fix 2</span><span class="cue go"><i></i>Your call</span></div>
+    </div>
+    <div class="body">
+      <div class="col"><div class="h"><b>Before</b><span>Agent's version</span></div><div class="shot"><img src="before.jpg" alt="Before"></div></div>
+      <div class="col"><div class="h"><b>After</b><span>Pass 3</span></div><div class="shot"><img src="after.png" alt="After"></div></div>
+      <div class="side">
+        <div class="h"><span>Notes</span><span>3</span></div>
+        <table>
+          <tr><td class="k">Q1</td><td><p>Cards replaced with a table.</p><small>"They scream AI generated." You, Oct 15</small></td></tr>
+          <tr><td class="k">Q2</td><td><p>Live and Code links on every project.</p><small>"We absolutely need the code links." You, Oct 15</small></td></tr>
+          <tr><td class="k own">Q3</td><td><p>Image and text joined in one cell.</p><small>Understudy's own note</small></td></tr>
+        </table>
+        <div class="diff"><b>README.md</b> &nbsp;<span>view the change</span></div>
+        <div class="acts"><button class="primary">Keep</button><button>Undo</button><button>Not quite</button></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+</div>
+<script>
+  const st = document.getElementById('stage');
+  const move = e => { const r = st.getBoundingClientRect(); const x = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)); st.style.setProperty('--x', (x*100)+'%'); };
+  st.addEventListener('pointermove', e => { if (e.buttons) move(e); });
+  st.addEventListener('pointerdown', e => { e.stopPropagation(); move(e); });
+  st.addEventListener('click', e => e.stopPropagation());
+  document.querySelectorAll('button').forEach(b => b.addEventListener('click', e => e.stopPropagation()));
+</script>
+</body>
+</html>

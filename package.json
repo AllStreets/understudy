@@ -1,0 +1,33 @@
+{
+  "name": "understudy",
+  "version": "0.1.0",
+  "description": "Learns your design bar from your Claude Code sessions, holds every agent's UI work to it, and shows you the before and after.",
+  "type": "module",
+  "license": "MIT",
+  "private": true,
+  "bin": {
+    "understudy": "bin/understudy.mjs"
+  },
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "dev": "vite --config app/vite.config.ts",
+    "build": "vite build --config app/vite.config.ts",
+    "serve": "tsx src/server.ts",
+    "cli": "tsx src/cli.ts",
+    "test": "node --import tsx --test test/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "three": "^0.187.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "@types/three": "^0.187.0",
+    "playwright": "^1.65.0",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.6"
+  }
+}
