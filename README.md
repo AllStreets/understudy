@@ -1,6 +1,4 @@
-<p align="center">
-  <img src="docs/media/banner.png" alt="Understudy: a stage manager's prompt book open on a walnut desk, typed notes and red pencil on the left page, two screenshots pasted on the right, a cue light box beside it" />
-</p>
+# Understudy
 
 <p align="center">
   <a href="#what-it-learns">What it learns</a>&nbsp;&nbsp;&nbsp;
@@ -18,26 +16,18 @@ If you build with a coding agent, you re-teach it your taste in every session. I
 
 Those judgments are already written down. They're in your Claude Code session logs, in your own words, next to the screenshots you were reacting to. Understudy reads them, works out the design bar they add up to, and holds every agent's UI work to that bar before you see it. When a screen misses, the agent fixes it, and you get the before and after with the reasons. Every reason cites the moment you taught it, in the words you used.
 
-<p align="center">
-  <img src="docs/media/demo.gif" alt="The prompt book: a before print lifts off the page to be read, Keep it is ticked in pencil and the cue light turns green, then the pages turn to the bible and the run" width="900" />
-</p>
-
 The name is from the theatre. An understudy watches the lead every night, rehearses offstage, and only goes on when they're ready.
 
 <br />
 
 ## What it learns
 
-STATS_PARAGRAPH
-
 Understudy reads your Claude Code sessions in four steps. Each one is a command you can run and inspect on its own.
 
-1. **Archive.** Claude Code deletes old session logs. On my Mac only 22 of three months of sessions had survived. Understudy copies every session somewhere it won't be cleaned up, and a hook keeps doing it at the end of each session.
+1. **Archive.** Claude Code deletes old session logs after a while. Understudy copies every session somewhere it won't be cleaned up, and a hook keeps doing it at the end of each session.
 2. **Mine.** It finds every message you typed, the screenshots the agent had just shown you, and the screenshots it took in reply. Resumed sessions repeat earlier messages, so duplicates are dropped.
 3. **Read.** Claude reads each message that sounds like a design judgment and pulls out every separate judgment in it, with the exact words that carry it. A quote that isn't really in your message is thrown away.
 4. **Distil.** The readings are folded into a short list of statements about your taste. That list is the bible, and every statement points back at the moments it came from.
-
-<img src="docs/media/bible.png" alt="The bible: numbered statements about the person's taste, each with a quote in red and how many times it came up" />
 
 ## Holding an agent to it
 
@@ -49,9 +39,7 @@ Understudy installs as a Claude Code plugin. When an agent finishes a turn that 
 
 If the screen misses, the hook stops the agent from finishing and hands it the notes. It fixes them and tries to stop again, which triggers a re-check. A re-check asks whether last round's notes were fixed, so the goalposts don't move, and after three rounds Understudy stops and shows you the best attempt instead of looping.
 
-Fixes are allowed to change how things look and are arranged, never what they say. That rule came from the first real test, where an agent invented "98% client retention" to satisfy a note about an empty hero.
-
-CHECK_SECTION
+Fixes are allowed to change how things look and are arranged, never what they say. That rule came from the first real test, where an agent invented a statistic to fill an empty hero.
 
 ## The book
 
@@ -60,8 +48,6 @@ Everything Understudy knows opens as a stage manager's prompt book on a desk, bu
 - **Your call** holds each fix waiting on you. The notes are typed on the left, your words in red, with the cue numbers circled in pencil. The before and after are pasted on the right. Click a print and it lifts off the page so you can read it. Tick Keep it, Undo fix or Not quite, and the cue light on the desk goes from red to green. Undo reverses the fix's exact diff, and refuses if the code has moved on underneath it.
 - **The bible** is what it has learned, one statement at a time.
 - **The run** is every judgment it learned from, one to a spread: what the agent had said, what you wrote with the judgment underlined in red, what you were looking at, and what the agent made next.
-
-<img src="docs/media/run.png" alt="A spread from the run: the message on the left with its judgments underlined, the screenshots before and after on the right" />
 
 ## Local and Claude
 
@@ -73,7 +59,7 @@ Everything Understudy knows opens as a stage manager's prompt book on a desk, bu
 | Reading judgments, distilling the bible, judging a screen | Claude, through your own Claude Code |
 | Fixing what missed | The Claude Code session that made it |
 
-COST_PARAGRAPH
+On a few hundred judgments, reading them all once cost a few dollars of Claude usage. A check costs a few cents, and planning a set of calibration pairs about the same.
 
 Understudy calls Claude through `claude -p` with your settings, plugins, MCP servers and tools switched off, and with session saving off, so it never reads its own calls back as your judgments.
 
