@@ -74,7 +74,8 @@ create table if not exists checks (
   call text,                    -- keep, undo, not-quite once the person decides
   session text,                 -- the agent session it ran in
   snapshot text,                -- a commit object of the working tree before the fix
-  cwd text                      -- the repository it ran in
+  cwd text,                     -- the repository it ran in
+  found text                    -- json: the first round's notes, what was wrong in the before
 );
 create table if not exists statements (
   id text primary key,
@@ -98,7 +99,7 @@ export function open(): DatabaseSync {
   db = new DatabaseSync(paths.db);
   db.exec('pragma journal_mode = wal; pragma foreign_keys = on;');
   db.exec(SCHEMA);
-  for (const col of ['session text', 'snapshot text', 'cwd text']) { try { db.exec(`alter table checks add column ${col}`); } catch { /* already there */ } }
+  for (const col of ['session text', 'snapshot text', 'cwd text', 'found text']) { try { db.exec(`alter table checks add column ${col}`); } catch { /* already there */ } }
   return db;
 }
 

@@ -11,6 +11,8 @@ export function sessionLogs(root = CLAUDE_PROJECTS): string[] {
   if (!existsSync(root)) return [];
   const out: string[] = [];
   for (const dir of readdirSync(root)) {
+    // sessions run in temporary folders (tests, scratch work) are not the person's judgments
+    if (/^-private-tmp-|^-tmp-|^-var-folders-|-scratchpad/.test(dir)) continue;
     const d = join(root, dir);
     if (!statSync(d).isDirectory()) continue;
     for (const f of readdirSync(d)) if (f.endsWith('.jsonl')) out.push(join(d, f));

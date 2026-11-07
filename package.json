@@ -16,7 +16,7 @@
     "build": "vite build --config app/vite.config.ts",
     "serve": "tsx src/server.ts",
     "cli": "tsx src/cli.ts",
-    "test": "node --import tsx --test test/*.test.ts",
+    "test": "node --no-warnings --import tsx --test test/*.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

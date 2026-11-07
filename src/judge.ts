@@ -1,4 +1,3 @@
-import { dirname } from 'node:path';
 import { open, json } from './store.ts';
 import { ask, MODELS } from './claude.ts';
 import { firstLook, nearest, available, type FirstLook } from './local.ts';
@@ -43,9 +42,14 @@ const SYSTEM = `You hold a screenshot of software to one person's design bar, an
 You may raise a note only when one of their past judgments, listed below with an id, clearly applies to what is on this screen; cite that id. The single exception is an obvious defect anyone would call broken (text overlapping text, clipped or unreadable text, a layout visibly falling apart): raise it with an empty cite.
 Never judge from general taste or what you think good design is. If nothing they have said applies, the screen meets their bar.
 "must" means they rejected this exact kind of thing before; "should" means it leans against something they said.
-Be specific about where on the screen. Write fixes an agent can act on. At most six notes, the strongest first.`;
+A past judgment applies only when the situation matches: a remark about a data tool's charts does not apply to a marketing page, and a remark about one project's colours is not a rule for every project. Prefer judgments they have made more than once.
+Every fix must work with the content already on the screen. Never ask for new content, data, numbers, claims or features: change how what is there looks, is arranged and behaves.
+Be specific about where on the screen. Write fixes an agent can act on. At most five notes, the strongest first.`;
 
-export async function judge(image: string, o: { project?: string; context?: string; log?: (s: string) => void } = {}): Promise<Verdict> {
+const RECHECK = `This is a re-check after the agent tried to fix the notes below. Decide first, for each, whether it is now resolved.
+Raise a new note only if the fix made something clearly worse, or there is an obvious defect. Do not move the goalposts: if last round's must notes are resolved and nothing got clearly worse, the screen meets the bar.`;
+
+export async function judge(image: string, o: { project?: string; context?: string; previous?: Note[]; log?: (s: string) => void } = {}): Promise<Verdict> {
   const log = o.log ?? (() => {});
   const db = open();
   const statements = db.prepare('select id, text, evidence from statements where removed = 0 order by weight desc').all() as { id: string; text: string; evidence: string }[];
@@ -61,16 +65,17 @@ export async function judge(image: string, o: { project?: string; context?: stri
   log(`Holding it to ${pool.size} past judgments and ${statements.length} statements.`);
 
   const prompt = [
-    `Read the screenshot at ${image}.`,
+    `The screenshot is attached.`,
     o.project ? `It is from the project ${o.project}.` : '',
     o.context ? `What the agent just changed: ${o.context}` : '',
     statements.length ? `\nTheir design bar, as distilled so far:\n${statements.map(s => `- ${s.text}`).join('\n')}` : '',
     `\nPast judgments you may cite (id, date, project, their words, what it implies):\n${[...pool.values()].map(r => `[${r.id}] ${when(r)} (${r.kind}) "${r.quote}" => ${r.gist}`).join('\n')}`,
     look?.tells.length ? `\nA small local model flagged these on a quick look (it is often wrong; check each yourself): ${look.tells.join('; ')}.` : '',
+    o.previous?.length ? `\n${RECHECK}\nLast round's notes:\n${o.previous.map((n, i) => `${i + 1}. [${n.severity}] ${n.claim}`).join('\n')}` : '',
   ].filter(Boolean).join('\n');
 
   log('Claude is judging...');
-  const { value, cost } = await ask<{ verdict: 'meets' | 'misses'; summary: string; notes: (Omit<Note, 'quote' | 'when' | 'own'> & { cite: string })[] }>(prompt, { model: MODELS.judge, schema: SCHEMA, system: SYSTEM, readDirs: [dirname(image)] });
+  const { value, cost } = await ask<{ verdict: 'meets' | 'misses'; summary: string; notes: (Omit<Note, 'quote' | 'when' | 'own'> & { cite: string })[] }>(prompt, { model: MODELS.judge, schema: SCHEMA, system: SYSTEM, images: [image] });
 
   // the quote under every note comes from the archive; a cite that is not real makes the note Understudy's own
   const notes: Note[] = value.notes.slice(0, 6).map(n => {
@@ -87,6 +92,6 @@ export async function judge(image: string, o: { project?: string; context?: stri
 export function forAgent(v: Verdict, round: number, max: number): string {
   const lines = [`Understudy held this screen to the user's design bar and it misses (round ${round} of ${max}). Fix these, then stop again to be re-checked:`];
   v.notes.forEach((n, i) => lines.push(`${i + 1}. ${n.claim} Fix: ${n.fix}${n.quote ? ` (They said, ${n.when}: "${n.quote}")` : ''}`));
-  lines.push('Change only what these notes cover. Do not restyle anything else.');
+  lines.push('Change only what these notes cover. Do not restyle anything else, and do not add or invent content, data, numbers or claims: change how what is already there looks and is arranged.');
   return lines.join('\n');
 }

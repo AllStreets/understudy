@@ -1,6 +1,6 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
-import { join, extname, resolve, dirname } from 'node:path';
+import { join, extname, resolve, dirname, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { open, json } from './store.ts';
 import { paths } from './paths.ts';
@@ -42,7 +42,7 @@ const routes: [string, RegExp, (m: RegExpMatchArray, req: IncomingMessage, res: 
     return { ok: true };
   }],
   // the checks worth a decision: fixed, or stuck; a first-look pass needs none
-  ['GET', /^\/api\/checks$/, () => (open().prepare(`select * from checks where after_shot is not null or verdict = 'stuck' order by at desc`).all() as any[]).map(c => ({ ...c, notes: json(c.notes, []) }))],
+  ['GET', /^\/api\/checks$/, () => (open().prepare(`select * from checks where after_shot is not null or verdict = 'stuck' order by at desc`).all() as any[]).map(c => ({ ...c, notes: json(c.found ?? c.notes, []), open: json(c.notes, []), before_shot: basename(c.before_shot), after_shot: c.after_shot ? basename(c.after_shot) : null }))],
   ['POST', /^\/api\/checks\/([^/]+)\/undo$/, async m => { const { undo } = await import('./check.ts'); return undo(m[1]); }],
   ['POST', /^\/api\/checks\/([^/]+)\/call$/, async (m, req) => {
     const { call, note } = await body(req);
