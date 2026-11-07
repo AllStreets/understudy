@@ -60,7 +60,9 @@ const commands: Record<string, () => Promise<void> | void> = {
   },
   async hook() {
     let raw = ''; for await (const c of process.stdin) raw += c;
-    const r = await stopHook(raw); if (r.stdout) process.stdout.write(r.stdout); process.exitCode = r.code;
+    // the hook must never take a session down: on any failure it says why on stderr and lets the agent stop
+    try { const r = await stopHook(raw); if (r.stdout) process.stdout.write(r.stdout); process.exitCode = r.code; }
+    catch (e) { console.error(`understudy hook: ${(e as Error).message}`); process.exitCode = 0; }
   },
   serve() { serve(); },
   async teach() {

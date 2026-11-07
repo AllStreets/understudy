@@ -112,10 +112,15 @@ export function allowedBash(commands: string[]): string[] {
   return [...out];
 }
 
-// A throwaway APFS clone of the project, put back to how it was when the lesson began.
-function cloneAtStart(l: Lesson): { stage: string; copy: string } {
+// A throwaway APFS clone of the project as it is now (shares blocks until something changes).
+function cloneNow(l: Lesson): { stage: string; copy: string } {
   const stage = mkdtempSync(join(tmpdir(), 'understudy-rehearsal-')), copy = join(stage, basename(l.cwd));
-  execFileSync('cp', ['-cR', l.cwd, copy]); // shares blocks with the original until something changes
+  execFileSync('cp', ['-cR', l.cwd, copy]);
+  return { stage, copy };
+}
+// The same, put back to how the project was when the lesson began.
+function cloneAtStart(l: Lesson): { stage: string; copy: string } {
+  const { stage, copy } = cloneNow(l);
   if (l.head) { git(copy, 'reset', '-q', '--hard', l.head); git(copy, 'clean', '-qfd'); if (l.snap && l.snap !== l.head) git(copy, 'stash', 'apply', '-q', l.snap); }
   return { stage, copy };
 }
@@ -123,12 +128,15 @@ const runs = (cmd: string, cwd: string) => { try { execFileSync('bash', ['-c', c
 
 // A check is only worth having if it tells the two states apart: it must pass on the project
 // as the demonstration left it, and fail on the project as it was before.
+// A generated check never runs in the real project: both states are clones.
 async function settleCheck(l: Lesson, proc: Procedure, log: (s: string) => void): Promise<string> {
-  const { stage, copy } = cloneAtStart(l);
+  const { stage, copy } = cloneAtStart(l), now = cloneNow(l);
   try {
     let check = proc.check;
     for (let attempt = 0; attempt < 3; attempt++) {
-      const after = runs(check, l.cwd), before = runs(check, copy);
+      // a check that changes things would spoil the next attempt, so each attempt gets fresh clones
+      if (attempt) { rmSync(now.copy, { recursive: true, force: true }); execFileSync('cp', ['-cR', l.cwd, now.copy]); }
+      const after = runs(check, now.copy), before = runs(check, copy);
       if (after && !before) return check;
       const why = !after ? 'it fails on the project after the task was done (it may have a syntax error)' : 'it already passes on the project before the task was done, so it proves nothing';
       log(`  The check does not tell before from after: ${why}. Asking for another.`);
@@ -137,7 +145,7 @@ async function settleCheck(l: Lesson, proc: Procedure, log: (s: string) => void)
       check = value.check;
     }
     throw new Error(`could not find a check that tells before from after; last tried: ${check}`);
-  } finally { rmSync(stage, { recursive: true, force: true }); }
+  } finally { rmSync(stage, { recursive: true, force: true }); rmSync(now.stage, { recursive: true, force: true }); }
 }
 
 export type Rehearsal = { at: string; passed: boolean; seconds: number; cost: number; check: string; log: string };
@@ -156,7 +164,9 @@ export async function rehearse(id: string, log: (s: string) => void = () => {}):
     const prompt = `Do this task in the current project. It has been done here before and written down; follow it.\n\nTask: ${proc.purpose}${inputs}\n\nSteps:\n${proc.steps.map((s, i) => `${i + 1}. ${s}`).join('\n')}\n\nWhen it is done, stop. Do not run anything outside this folder.`;
     const { out, cost } = await new Promise<{ out: string; cost: number }>((resolve, reject) => {
       const p = spawn('claude', ['-p', prompt, '--model', MODELS.judge, '--no-session-persistence', '--setting-sources', '', '--strict-mcp-config', '--permission-mode', 'acceptEdits',
-        '--allowedTools', ['Read', 'Edit', 'Write', 'Glob', 'Grep', ...allowedBash(proc.commands)].join(' '), '--output-format', 'json'], { cwd: copy, stdio: ['ignore', 'pipe', 'pipe'] });
+        // file tools are scoped to the clone (// marks an absolute path); the shell to the demonstration's commands
+        '--allowedTools', [`Read(/${copy}/**)`, `Edit(/${copy}/**)`, `Write(/${copy}/**)`, 'Glob', 'Grep', ...allowedBash(proc.commands)].join(' '),
+        '--disallowedTools', 'WebFetch WebSearch', '--output-format', 'json'], { cwd: copy, stdio: ['ignore', 'pipe', 'pipe'] });
       let o = ''; p.stdout.on('data', d => o += d);
       const timer = setTimeout(() => p.kill(), 15 * 60_000);
       p.on('close', () => { clearTimeout(timer); try { const d = JSON.parse(o); resolve({ out: String(d.result ?? ''), cost: d.total_cost_usd ?? 0 }); } catch { reject(new Error(`rehearsal agent failed: ${o.slice(-300)}`)); } });

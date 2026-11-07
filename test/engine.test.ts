@@ -1,6 +1,6 @@
 import { test, before } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { execFileSync } from 'node:child_process';
@@ -110,4 +110,23 @@ test('a demonstration is read back as a script, and rehearsals may only run its 
   // a command with shell operators is dropped whole; deleting, publishing and network programs never pass
   assert.deepEqual(allowedBash(d.commands), ['Bash(npm version:*)']);
   assert.deepEqual(allowedBash(['cat a; rm b', 'git status', 'rm -rf build', 'git push origin main', 'npm publish', 'curl https://x', 'echo $(whoami)', 'npm run build']), ['Bash(git status:*)', 'Bash(npm run:*)']);
+});
+
+test('a fix that adds a file is fully undone, and the person\'s staging is left alone', async () => {
+  const { snapshotTree, undo } = await import('../src/check.ts');
+  const { open } = await import('../src/store.ts');
+  const repo = join(home, 'undo-new'); mkdirSync(repo);
+  const g = (...a: string[]) => execFileSync('git', a, { cwd: repo, encoding: 'utf8' });
+  g('init', '-q'); writeFileSync(join(repo, 'a.css'), 'a {}\n'); g('add', '-A'); g('-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-qm', 'one');
+  writeFileSync(join(repo, 'draft.txt'), 'not staged, not part of the fix\n');
+  const before = snapshotTree(repo)!;
+  writeFileSync(join(repo, 'a.css'), 'a { color: red }\n'); writeFileSync(join(repo, 'new.css'), 'b {}\n');
+  const after = snapshotTree(repo)!;
+  const patch = execFileSync('git', ['diff', '--binary', before, after], { cwd: repo, encoding: 'utf8' });
+  assert.equal(g('status', '--porcelain').includes('A '), false, 'snapshots never stage anything');
+  open().prepare(`insert into checks (id, at, target, before_shot, notes, verdict, rounds, patch, cwd) values ('c2', 'x', 'x', 'x', '[]', 'meets', 2, ?, ?)`).run(patch, repo);
+  assert.equal(undo('c2').ok, true);
+  assert.equal(readFileSync(join(repo, 'a.css'), 'utf8'), 'a {}\n');
+  assert.equal(existsSync(join(repo, 'new.css')), false, 'the file the fix created is gone');
+  assert.equal(existsSync(join(repo, 'draft.txt')), true, 'a file from before the fix stays');
 });

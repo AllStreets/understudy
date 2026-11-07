@@ -1,4 +1,7 @@
 import { execFileSync } from 'node:child_process';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { basename } from 'node:path';
 import { open, json } from './store.ts';
@@ -7,9 +10,19 @@ import { judge, type Verdict } from './judge.ts';
 
 export const MAX_ROUNDS = 3;
 
-const git = (cwd: string, ...args: string[]) => { try { return execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim(); } catch { return null; } };
+const git = (cwd: string, args: string[], env?: NodeJS.ProcessEnv) => { try { return execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], env: env ? { ...process.env, ...env } : undefined, maxBuffer: 64 << 20 }).trim(); } catch { return null; } };
 // A commit object holding the working tree as it is now, without touching the tree or the stash list.
-export function snapshot(cwd: string): string | null { return git(cwd, 'stash', 'create') || git(cwd, 'rev-parse', 'HEAD'); }
+export function snapshot(cwd: string): string | null { return git(cwd, ['stash', 'create']) || git(cwd, ['rev-parse', 'HEAD']); }
+// A tree object of the whole working tree, new files included (ignored files left out). Built in
+// a private index, so the person's own staging area is never touched.
+export function snapshotTree(cwd: string): string | null {
+  const dir = mkdtempSync(join(tmpdir(), 'understudy-index-')), env = { GIT_INDEX_FILE: join(dir, 'index') };
+  try {
+    if (git(cwd, ['rev-parse', 'HEAD'])) git(cwd, ['read-tree', 'HEAD'], env);
+    if (git(cwd, ['add', '-A', '.'], env) === null) return null;
+    return git(cwd, ['write-tree'], env);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+}
 
 export type CheckRow = { id: string; at: string; project: string | null; target: string; before_shot: string; after_shot: string | null; notes: string; found: string | null; verdict: string; rounds: number; patch: string | null; call: string | null; session: string | null; snapshot: string | null; cwd: string | null };
 export type Outcome = { check: CheckRow; result: Verdict; status: 'meets' | 'misses' | 'stuck'; round: number };
@@ -28,14 +41,16 @@ export async function check(target: string, o: { project?: string; session?: str
 
   if (openCheck) {
     const round = openCheck.rounds + 1;
-    const patch = openCheck.cwd && openCheck.snapshot ? git(openCheck.cwd, 'diff', openCheck.snapshot) : null;
+    // the fix is everything between the tree then and the tree now, new and deleted files included
+    const now = openCheck.cwd ? snapshotTree(openCheck.cwd) : null;
+    const patch = openCheck.cwd && openCheck.snapshot && now ? git(openCheck.cwd, ['diff', '--binary', openCheck.snapshot, now]) : null;
     const status = result.verdict === 'meets' ? 'meets' : round >= MAX_ROUNDS ? 'stuck' : 'misses';
     // notes always holds the latest round's notes (what the agent works from next); found keeps the first round's
     db.prepare('update checks set after_shot = ?, rounds = ?, patch = ?, verdict = ?, notes = ? where id = ?').run(shot, round, patch, status, JSON.stringify(result.notes), openCheck.id);
     return { check: db.prepare('select * from checks where id = ?').get(openCheck.id) as CheckRow, result, status, round };
   }
   const id = randomUUID().slice(0, 12);
-  const snap = o.cwd ? snapshot(o.cwd) : null;
+  const snap = o.cwd ? snapshotTree(o.cwd) : null;
   db.prepare(`insert into checks (id, at, project, target, before_shot, notes, found, verdict, rounds, session, snapshot, cwd) values (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)`)
     .run(id, new Date().toISOString(), project, target, shot, JSON.stringify(result.notes), JSON.stringify(result.notes), result.verdict, o.session ?? null, snap, o.cwd ?? null);
   return { check: db.prepare('select * from checks where id = ?').get(id) as CheckRow, result, status: result.verdict, round: 1 };
