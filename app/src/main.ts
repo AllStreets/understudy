@@ -163,4 +163,16 @@ room.renderer.setAnimationLoop(now => {
   binder.tick(dt); prints.tick(dt, room.camera, look);
   room.composer.render();
 });
-(window as any).understudy = { go, hold: (t: number | null) => binder.hold(t), get at() { return at; }, book: () => book.map(b => b.section), close: (s: 'left' | 'right' | null) => { close = s; frame(); } };
+// where something is on screen, for scripted demos and tests
+function where(name: string): { x: number; y: number } | null {
+  const v = new THREE.Vector3();
+  const project = () => { v.project(room.camera); return { x: (v.x + 1) / 2 * innerWidth, y: (1 - v.y) / 2 * innerHeight }; };
+  if (name.startsWith('print:')) { const p = prints.list[Number(name.slice(6))]; if (!p) return null; p.getWorldPosition(v); return project(); }
+  if (name.startsWith('tab:')) { const m = tabs.meshes.find(m => m.userData.tab === name.slice(4)); if (!m) return null; m.getWorldPosition(v); v.x -= .02; return project(); }
+  const hit = current.hits.find(h => h.id === name);
+  if (hit) { const sheet = hit.side === 'left' ? binder.left : binder.right; const u = ((hit.x0 + hit.x1) / 2) / CW, w = ((hit.y0 + hit.y1) / 2) / CH;
+    v.set((u - .5) * 2.1, (.5 - w) * 2.97, .01); sheet.localToWorld(v); return project(); }
+  if (name === 'next') { v.set(.85, -.6, .01); binder.right.localToWorld(v); return project(); }
+  return null;
+}
+(window as any).understudy = { where, go, hold: (t: number | null) => binder.hold(t), get at() { return at; }, book: () => book.map(b => b.section), close: (s: 'left' | 'right' | null) => { close = s; frame(); } };

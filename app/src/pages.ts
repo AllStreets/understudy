@@ -54,14 +54,25 @@ export function callSpread(c: Check, i: number, total: number, imgs: { before: H
   const left = blank('right'), right = blank('left'), k = ctx(left), r = ctx(right), hits: Hit[] = [];
   marginRule(k);
   let y = header(k, projectName(c.project), `${c.verdict === 'meets' ? `Held at your bar after ${c.rounds} ${c.rounds === 1 ? 'pass' : 'passes'}.` : c.verdict === 'stuck' ? `Stuck after ${c.rounds} passes. Here is the best it got.` : 'Misses your bar.'} ${day(c.at)}.`, L, R) + 30;
-  c.notes.forEach((n, j) => {
-    const own = n.own || !n.quote, col = own ? GRAPHITE : RED;
-    cue(k, String(j + 1), L - 40, y, col, hash(c.id) + j);
-    k.font = font(48); k.fillStyle = INK; y = wrap(k, n.claim, L + 40, y, R - L - 40, 64, 4);
-    if (n.quote) { k.font = font(46, { italic: true }); k.fillStyle = '#8f3424'; y = wrap(k, `“${n.quote}”`, L + 40, y + 10, R - L - 40, 60, 3); }
-    k.font = font(34, { family: SANS }); k.fillStyle = INK_FAINT; k.fillText(own ? 'Understudy’s own note, no past judgment behind it' : (n.cites?.[0] ?? 'You'), L + 40, y + 14);
-    y += 130;
-  });
+  // the notes take the room above Your call; with many notes the type steps down a size
+  const notesFit = (scale: number, kk: Ctx) => {
+    let yy = y; const fs = 48 * scale, lh = 64 * scale;
+    c.notes.forEach((n, j) => {
+      const own = n.own || !n.quote, col = own ? GRAPHITE : RED;
+      cue(kk, String(j + 1), L - 40, yy, col, hash(c.id) + j);
+      kk.font = font(fs); kk.fillStyle = INK; yy = wrap(kk, n.claim, L + 40, yy, R - L - 40, lh, 3);
+      if (n.quote) { kk.font = font(fs * .95, { italic: true }); kk.fillStyle = '#8f3424'; yy = wrap(kk, `\u201C${n.quote}\u201D`, L + 40, yy + 8, R - L - 40, lh * .94, 2); }
+      kk.font = font(32 * Math.max(.9, scale), { family: SANS }); kk.fillStyle = INK_FAINT;
+      kk.fillText(own ? 'Understudy\u2019s own note, no past judgment behind it' : `You, ${n.when ?? ''}`.replace(/, $/, ''), L + 40, yy + 12);
+      yy += 110 * scale;
+    });
+    return yy;
+  };
+  // lay the notes out on a scratch page first, and take the largest size that fits
+  const scratch = document.createElement('canvas'); scratch.width = CW; scratch.height = CH * 2;
+  const room = CH - 300 - 150;
+  const scale = [1, .92, .84, .76, .7].find(sc => notesFit(sc, scratch.getContext('2d')!) < room) ?? .7;
+  notesFit(scale, k);
   const by = CH - 300;
   rule(k, L, R, by - 110);
   k.font = font(40, { italic: true }); k.fillStyle = INK_SOFT; k.fillText('Your call', L, by - 40);
@@ -129,16 +140,17 @@ export function bibleSpreads(st: Statement[], byId: Map<string, Moment>, summary
       const x0 = side === 'left' ? L : RL, x1 = side === 'left' ? R : RR;
       if (side === 'left') marginRule(k);
       let y = 210;
-      if (first) y = header(k, 'The bible', `What Understudy has learned about your eye, from ${summary.taste} judgments across ${summary.sessions} sessions.`, x0, x1) + 30;
+      if (first) y = header(k, 'The bible', `What Understudy has learned about your eye, from ${summary.taste} ${summary.taste === 1 ? "judgment" : "judgments"} across ${summary.sessions} ${summary.sessions === 1 ? "session" : "sessions"}.`, x0, x1) + 30;
       for (const s of items) {
         n++;
         const ev = s.evidence.map(id => ({ m: momentOf(id), r: readingOf(id) })).filter((x): x is { m: Moment; r: Reading } => !!x.m && !!x.r).sort((a, b) => a.m.at.localeCompare(b.m.at));
         cue(k, String(n), x0 - 40 + (side === 'right' ? 0 : 0), y, ev.length > 2 ? RED : GRAPHITE, hash(s.id));
         k.font = font(46); k.fillStyle = INK; const top = y; y = wrap(k, s.text, x0 + 40, y, x1 - x0 - 40, 60, 3);
-        const best = ev.find(m => m.quote && m.quote.length < 90) ?? ev[0];
-        if (best?.quote) { k.font = font(40, { italic: true }); k.fillStyle = '#8f3424'; y = wrap(k, `“${best.quote}”`, x0 + 40, y + 6, x1 - x0 - 40, 52, 2); }
+        const best = ev.find(x => x.r.quote.length < 90) ?? ev[0];
+        if (best) { k.font = font(40, { italic: true }); k.fillStyle = '#8f3424'; y = wrap(k, `“${best.r.quote}”`, x0 + 40, y + 6, x1 - x0 - 40, 52, 2); }
         k.font = font(32, { family: SANS }); k.fillStyle = INK_FAINT;
-        k.fillText(`${ev.length} ${ev.length === 1 ? 'moment' : 'moments'}${best ? `, first ${day(ev[0].at)} on ${projectName(best.project)}` : ''}`, x0 + 40, y + 10);
+        const projects = new Set(ev.map(x => x.m.project)).size;
+        if (ev.length) k.fillText(`${ev.length === 1 ? 'Once' : `${ev.length} times`}${projects > 1 ? `, across ${projects} projects` : `, on ${projectName(ev[0].m.project)}`}, first ${day(ev[0].m.at)}`, x0 + 40, y + 10);
         hits.push({ id: `stmt:${s.id}`, x0: x0 - 80, x1, y0: top - 60, y1: y + 30, side });
         y += 110;
       }

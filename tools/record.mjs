@@ -30,16 +30,19 @@ await page.waitForFunction(() => !document.getElementById('loading'), null, { ti
 const start = (Date.now() - t0) / 1000 + .4;
 const move = async (x, y, steps = 24) => page.mouse.move(x, y, { steps });
 
-await page.mouse.move(700, 820); await wait(1400);
-// lift the before print, read it, put it back
-await move(1215, 380); await wait(300); await page.mouse.down(); await page.mouse.up(); await wait(2600);
-await page.mouse.down(); await page.mouse.up(); await wait(1200);
+const at = name => page.evaluate(n => window.understudy.where(n), name);
+const click = async (name, after = 2400) => { const p = await at(name); if (!p) throw new Error(`nothing at ${name}`); await move(p.x, p.y); await wait(260); await page.mouse.down(); await page.mouse.up(); await wait(after); };
+await page.mouse.move(720, 860); await wait(1500);
+// read the before: it lifts off the page, then goes back
+await click('print:0', 2800); await page.mouse.down(); await page.mouse.up(); await wait(1300);
+// and the after
+await click('print:1', 2600); await page.mouse.down(); await page.mouse.up(); await wait(1200);
 // keep it: the pencil ticks the box, the cue light goes green
-await move(345, 932); await wait(300); await page.mouse.down(); await page.mouse.up(); await wait(2200);
-// to the bible, then a page of the run
-await move(1550, 520); await wait(250); await page.mouse.down(); await page.mouse.up(); await wait(2600);
-await move(1400, 800); await wait(250); await page.mouse.down(); await page.mouse.up(); await wait(2400);
-await move(1565, 700); await wait(250); await page.mouse.down(); await page.mouse.up(); await wait(3000);
+await click('call:keep', 2400);
+// calibration: pick one, and the next pair turns up
+await click('tab:calibrate', 2600); await click('pick:b', 3200);
+// the bible, then the run
+await click('tab:bible', 2800); await click('tab:run', 2600); await click('next', 3000);
 // put the call back the way it was, so recording leaves no trace
 await page.evaluate(() => fetch('/api/checks').then(r => r.json()).then(cs => Promise.all(cs.map(c => fetch(`/api/checks/${c.id}/call`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ call: 'reset' }) })))));
 await ctx.close(); await browser.close();
