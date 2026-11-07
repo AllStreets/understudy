@@ -2,7 +2,7 @@ import { createRoom, THREE } from './kit.ts';
 import { createBinder } from './binder.ts';
 import { createPencil, createPrints, createCueBox, createTabs, printCanvas } from './props.ts';
 import { loadFonts, CW, CH } from './paper.ts';
-import { callSpread, bibleSpreads, runSpread, bake, type Spread, type Moment, type Statement, type Check } from './pages.ts';
+import { callSpread, bibleSpreads, runSpread, pairSpread, bake, type Spread, type Moment, type Statement, type Check, type Pair } from './pages.ts';
 
 const $ = (s: string) => document.querySelector(s) as HTMLElement;
 const api = <T>(p: string): Promise<T> => fetch(p).then(r => r.json());
@@ -15,16 +15,17 @@ const img = (src?: string) => {
 const shotUrl = (s: string) => s.startsWith('/') || s.startsWith('http') ? s : `/shot/${s}`;
 
 await loadFonts();
-const [summary, moments, statements, checks] = await Promise.all([
-  api<{ sessions: number; taste: number; design: number }>('/api/summary'), api<Moment[]>('/api/moments'), api<Statement[]>('/api/statements'), api<Check[]>('/api/checks'),
+const [summary, moments, statements, checks, pairs] = await Promise.all([
+  api<{ sessions: number; taste: number; design: number }>('/api/summary'), api<Moment[]>('/api/moments'), api<Statement[]>('/api/statements'), api<Check[]>('/api/checks'), api<Pair[]>('/api/pairs'),
 ]);
 const byId = new Map(moments.map(m => [m.id, m]));
 const waiting = checks.filter(c => !c.call).concat(checks.filter(c => c.call));
 
 // ----- the book: a list of spreads, built lazily (each run spread loads its screenshots) -----
-type Entry = { section: 'call' | 'bible' | 'run'; build: () => Promise<Spread> };
+type Entry = { section: 'call' | 'calibrate' | 'bible' | 'run'; build: () => Promise<Spread> };
 const book: Entry[] = [];
 waiting.forEach((c, i) => book.push({ section: 'call', build: async () => callSpread(c, i, waiting.length, { before: (await img(shotUrl(c.before_shot)))!, after: c.after_shot ? await img(shotUrl(c.after_shot)) : undefined }) }));
+pairs.forEach((p, i) => book.push({ section: 'calibrate', build: async () => pairSpread(p, i, pairs.length, { a: (await img(shotUrl(p.a_shot)))!, b: (await img(shotUrl(p.b_shot)))! }) }));
 const bible = bibleSpreads(statements, byId, summary);
 bible.forEach(s => book.push({ section: 'bible', build: async () => s }));
 const run = moments.filter(m => m.before.length || m.pasted.length || m.after.length).concat(moments.filter(m => !(m.before.length || m.pasted.length || m.after.length)));
@@ -46,10 +47,11 @@ const prints = createPrints(room);
 const cuebox = createCueBox(room);
 const tabs = createTabs(room, [
   ...(waiting.length ? [{ id: 'call', label: 'Your call' }] : []),
+  ...(pairs.length ? [{ id: 'calibrate', label: 'Calibration' }] : []),
   { id: 'bible', label: 'The bible' }, { id: 'run', label: 'The run' },
 ]);
 
-let at = Math.max(0, book.findIndex(e => e.section === (waiting.some(c => !c.call) ? 'call' : 'bible')));
+let at = Math.max(0, book.findIndex(e => e.section === (waiting.some(c => !c.call) ? 'call' : pairs.length ? 'calibrate' : 'bible')));
 let current: Spread;
 async function settle(i: number) {
   current = await spreadAt(i);
@@ -57,7 +59,7 @@ async function settle(i: number) {
   prints.set(current.prints);
   cuebox.set(current.state ?? 'dark');
   tabs.active(book[i].section);
-  document.title = `Understudy, ${({ call: 'your call', bible: 'the bible', run: 'the run' })[book[i].section]}`;
+  document.title = `Understudy, ${({ call: 'your call', calibrate: 'calibration', bible: 'the bible', run: 'the run' })[book[i].section]}`;
   // build the neighbours ahead of time so turns start at once
   for (const j of [i + 1, i - 1]) if (book[j]) spreadAt(j).then(bakedOf);
 }
@@ -121,6 +123,15 @@ addEventListener('pointerdown', async e => {
   const tab = tabs.pick(r); if (tab) { const i = book.findIndex(b => b.section === tab); if (i >= 0) go(i); return; }
   const ph = pageHit(r);
   if (ph?.hit?.id.startsWith('call:')) return call(ph.hit.id.slice(5));
+  if (ph?.hit?.id.startsWith('pick:')) {
+    const p = pairs.find(x => current.key === `pair:${x.id}`); if (!p) return;
+    p.pick = ph.hit.id.slice(5);
+    await fetch(`/api/pairs/${p.id}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ pick: p.pick }) });
+    built.delete(at); await settle(at);
+    // the next pair turns up on its own, the way a deck of cards does
+    setTimeout(() => { if (book[at + 1]?.section === 'calibrate') go(at + 1); }, 700);
+    return;
+  }
   if (ph?.hit?.id.startsWith('stmt:')) { const s = statements.find(x => `stmt:${x.id}` === ph.hit!.id); const first = s && run.findIndex(m => s.evidence.includes(m.id)); if (first != null && first >= 0) go(book.findIndex(b => b.section === 'run') + first); return; }
   // the outer third of a page turns it; elsewhere, a click brings that page close
   if (ph) {

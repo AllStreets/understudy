@@ -7,10 +7,20 @@ import { indexMoments, available } from './local.ts';
 import { check, undo } from './check.ts';
 import { stopHook } from './hook.ts';
 import { serve } from './server.ts';
+import { calibrate } from './calibrate.ts';
 
 const [cmd, ...args] = process.argv.slice(2);
 
 const commands: Record<string, () => Promise<void> | void> = {
+  // everything a new user runs once, and anyone can rerun: only new sessions are read again
+  async learn() {
+    await commands.archive();
+    await commands.mine();
+    await commands.read();
+    const a = await available();
+    if (a.embed) await commands.index(); else console.log('Skipping local matching: Ollama with nomic-embed-text is not available.');
+    await commands.distil();
+  },
   async archive() {
     const r = archive();
     console.log(`Found ${r.found} session logs. Archived ${r.added} new, ${r.grown} grown, ${r.unchanged} unchanged.`);
@@ -52,6 +62,12 @@ const commands: Record<string, () => Promise<void> | void> = {
     const r = await stopHook(raw); if (r.stdout) process.stdout.write(r.stdout); process.exitCode = r.code;
   },
   serve() { serve(); },
+  async calibrate() {
+    const url = args.find(a => !a.startsWith('--')); if (!url) return console.log('understudy calibrate <url of one of your pages> [--n 6] [--project name]');
+    const ni = args.indexOf('--n'), pi = args.indexOf('--project');
+    const r = await calibrate(url, { n: ni >= 0 ? Number(args[ni + 1]) : 6, project: pi >= 0 ? args[pi + 1] : undefined, log: console.log });
+    console.log(`${r.made} pairs are waiting in the book under Calibration. Cost $${r.cost.toFixed(3)}.`);
+  },
   async stats() {
     const db = open();
     const rows = db.prepare(`select coalesce(project, '(unknown)') p, count(*) n, sum(before != '[]' or pasted != '[]') shots
@@ -61,6 +77,7 @@ const commands: Record<string, () => Promise<void> | void> = {
   help() {
     console.log(`understudy <command>
 
+  learn     do all of the below in order: archive, mine, read, index, distil
   archive   copy every Claude Code session log into the archive
   mine      find the messages you typed and what you saw around them
   read      ask Claude what each judgment says about your taste
@@ -68,6 +85,7 @@ const commands: Record<string, () => Promise<void> | void> = {
   index     embed your judgments with a local model (Ollama) for matching
   check     hold a page or screenshot to your bar: understudy check http://localhost:5173
   undo      take back a fix: understudy undo <check id>
+  calibrate render one of your pages in pairs that differ in one thing, to pick between in the book
   serve     open the prompt book on http://127.0.0.1:4730
   hook      the Claude Code Stop hook (reads its JSON on stdin)
   stats     design judgments per project`);

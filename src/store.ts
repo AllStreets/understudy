@@ -77,6 +77,19 @@ create table if not exists checks (
   cwd text,                     -- the repository it ran in
   found text                    -- json: the first round's notes, what was wrong in the before
 );
+-- calibration: the same page rendered twice, differing in one thing
+create table if not exists pairs (
+  id text primary key,
+  at text not null,
+  project text,
+  url text not null,
+  dimension text not null,
+  question text not null,
+  a_label text not null, a_css text not null, a_shot text not null,
+  b_label text not null, b_css text not null, b_shot text not null,
+  pick text,                    -- a, b or neither
+  picked_at text
+);
 create table if not exists statements (
   id text primary key,
   text text not null,           -- a plain sentence about the person's taste
@@ -100,6 +113,7 @@ export function open(): DatabaseSync {
   db.exec('pragma journal_mode = wal; pragma foreign_keys = on;');
   db.exec(SCHEMA);
   for (const col of ['session text', 'snapshot text', 'cwd text', 'found text']) { try { db.exec(`alter table checks add column ${col}`); } catch { /* already there */ } }
+  try { db.exec('alter table sessions add column mined integer'); } catch { /* already there */ }
   return db;
 }
 

@@ -72,11 +72,12 @@ type Pending = { line: number; at: string | null; text: string; pasted: Img[]; b
 export async function mineSession(id: string, file: string): Promise<number> {
   ensureDirs();
   const db = open();
-  db.prepare('delete from moments where session = ?').run(id);
   // a resumed session repeats the messages it carried over; keep only the first copy
   const already = db.prepare('select 1 from moments where at = ? and text = ? and session != ? limit 1');
+  // a session is mined again when it grows; what was already read about a message is kept
   const put = db.prepare(`insert into moments (id, session, line, at, project, text, said_before, said_after, pasted, before, after, design)
-    values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+    values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) on conflict(id) do update set project = excluded.project, said_after = excluded.said_after,
+    before = excluded.before, after = excluded.after, design = excluded.design`);
 
   let shown: Img[] = [];          // agent screenshots since the last typed message
   let lastSaid = '';              // the agent's latest words
@@ -157,8 +158,9 @@ export function linkReplies() {
 
 export async function mineAll(onSession?: (id: string, n: number) => void): Promise<{ sessions: number; moments: number; design: number; withImages: number }> {
   const db = open();
-  const sessions = db.prepare('select id, archived from sessions order by first_at').all() as { id: string; archived: string }[];
-  for (const s of sessions) { const n = await mineSession(s.id, s.archived); onSession?.(s.id, n); }
+  const sessions = db.prepare('select id, archived, lines from sessions where mined is null or mined < lines order by first_at').all() as { id: string; archived: string; lines: number }[];
+  const done = db.prepare('update sessions set mined = ? where id = ?');
+  for (const s of sessions) { const n = await mineSession(s.id, s.archived); done.run(s.lines, s.id); onSession?.(s.id, n); }
   linkReplies();
   const q = (sql: string) => (db.prepare(sql).get() as { n: number }).n;
   return {

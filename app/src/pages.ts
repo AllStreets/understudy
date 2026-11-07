@@ -29,6 +29,26 @@ const projectName = (p?: string | null) => (p ?? 'a project').replace(/[_-]+/g, 
 // Page coordinates for a print, given its centre on the page in scene units.
 export const P = { x: (px: number) => px / CW * PW - PW / 2, y: (py: number) => PH / 2 - py / CH * PH };
 
+// Two prints on the right page: side by side when they are tall, stacked when they are wide.
+const cy = (y: number) => (PH / 2 - y) / PH * CH;
+function pair(r: Ctx, a: HTMLImageElement, b: HTMLImageElement | undefined, la: string, lb: string, marksA?: PrintSpec['marks']): PrintSpec[] {
+  const wide = a.width / a.height > 1.15;
+  r.fillStyle = '#5d5446'; r.font = font(44, { italic: true });
+  if (wide) {
+    // both prints share one landscape crop, sized so two fit on the page with their captions
+    const aspect = Math.max(1.3, Math.min(1.9, a.width / a.height)), h = b ? 1.04 : 1.6, w = Math.min(1.84, h * aspect);
+    const ya = PH / 2 - .2 - h / 2, yb = ya - h - .3;
+    r.fillText(la, RL, cy(ya - h / 2) + 70);
+    const out: PrintSpec[] = [{ img: a, x: 0, y: ya, w, rot: -.004, aspect: w / h, marks: marksA }];
+    if (b) { out.push({ img: b, x: 0, y: yb, w, rot: .003, aspect: w / h }); r.fillText(lb, RL, cy(yb - h / 2) + 70); }
+    return out;
+  }
+  const out: PrintSpec[] = [{ img: a, x: b ? -.5 : 0, y: .32, w: b ? .96 : 1.3, rot: -.012, marks: marksA }];
+  r.fillText(la, RL, 1560);
+  if (b) { out.push({ img: b, x: .52, y: .32, w: .96, rot: .009 }); r.fillText(lb, 905, 1560); }
+  return out;
+}
+
 // ----- Your call -----
 export function callSpread(c: Check, i: number, total: number, imgs: { before: HTMLImageElement; after?: HTMLImageElement }): Spread {
   const left = blank('right'), right = blank('left'), k = ctx(left), r = ctx(right), hits: Hit[] = [];
@@ -55,17 +75,43 @@ export function callSpread(c: Check, i: number, total: number, imgs: { before: H
     x += w + 90;
   }
   folio(k, `${i + 1} of ${total} waiting`, 'left');
-  r.fillStyle = '#5d5446'; r.font = font(46, { italic: true });
-  r.fillText('As the agent left it.', RL, 1560);
-  if (imgs.after) { r.fillText('After Understudy’s fixes.', 905, 1560); underline(r, 905, 1420, 1580, { color: GRAPHITE }); }
-  r.font = font(34, { family: SANS }); r.fillStyle = INK_FAINT; wrap(r, c.target, RL, 1740, RR - RL, 46, 2);
-  const prints: PrintSpec[] = [{ img: imgs.before, x: -.5, y: .32, w: .96, rot: -.012, marks: (pk, W, H) => {
-    c.notes.forEach((n, j) => { if (!n.where || n.own) return; const cx = (n.where.x + n.where.w / 2) * W, cy = (n.where.y + n.where.h / 2) * H;
-      pencil(pk, ring(cx, cy, n.where.w * W / 2 + 18, n.where.h * H / 2 + 14, -.02, 1.1, j + 3), { color: RED, width: 5, alpha: .32, seed: j });
-      pk.fillStyle = 'rgba(251,250,246,.88)'; pk.beginPath(); pk.arc(Math.max(34, cx - n.where.w * W / 2 - 10), cy - n.where.h * H / 2, 30, 0, 7); pk.fill();
-      pk.font = font(40, { weight: 500 }); pk.fillStyle = '#b0301f'; pk.textAlign = 'center'; pk.fillText(String(j + 1), Math.max(34, cx - n.where.w * W / 2 - 10), cy - n.where.h * H / 2 + 13); pk.textAlign = 'left'; }); } }];
-  if (imgs.after) prints.push({ img: imgs.after, x: .52, y: .32, w: .96, rot: .009 });
+  const marks: PrintSpec['marks'] = (pk, W, H) => {
+    c.notes.forEach((n, j) => { if (!n.where || n.own) return; const cx = (n.where.x + n.where.w / 2) * W, cyy = (n.where.y + n.where.h / 2) * H;
+      pencil(pk, ring(cx, cyy, n.where.w * W / 2 + 18, n.where.h * H / 2 + 14, -.02, 1.1, j + 3), { color: RED, width: 5, alpha: .32, seed: j });
+      const lx = Math.max(34, cx - n.where.w * W / 2 - 10), ly = Math.max(34, cyy - n.where.h * H / 2);
+      pk.fillStyle = 'rgba(251,250,246,.88)'; pk.beginPath(); pk.arc(lx, ly, 30, 0, 7); pk.fill();
+      pk.font = font(40, { weight: 500 }); pk.fillStyle = '#b0301f'; pk.textAlign = 'center'; pk.fillText(String(j + 1), lx, ly + 13); pk.textAlign = 'left'; }); };
+  const prints = pair(r, imgs.before, imgs.after, 'As the agent left it.', c.verdict === 'stuck' ? 'Its best attempt.' : 'After Understudy\u2019s fixes.', marks);
+  r.font = font(32, { family: SANS }); r.fillStyle = INK_FAINT; r.fillText(c.target, RL, CH - 110);
   return { key: `call:${c.id}`, left, right, prints, hits, folio: `${i + 1}/${total}`, state: c.call === 'keep' ? 'go' : c.call ? 'dark' : 'standby' };
+}
+
+// ----- Calibration: two renders of your own page, differing in one thing -----
+export type Pair = { id: string; project: string | null; dimension: string; question: string; a_label: string; b_label: string; a_shot: string; b_shot: string; pick: string | null };
+export function pairSpread(p: Pair, i: number, total: number, imgs: { a: HTMLImageElement; b: HTMLImageElement }): Spread {
+  const left = blank('right'), right = blank('left'), k = ctx(left), r = ctx(right), hits: Hit[] = [];
+  marginRule(k);
+  let y = header(k, 'Calibration', `${p.project ? `${projectName(p.project)}, ` : ''}${i + 1} of ${total}. One thing differs between the two.`, L, R) + 40;
+  k.font = font(64); k.fillStyle = INK; y = wrap(k, p.question, L, y + 30, R - L, 80, 3) + 40;
+  for (const [tag, label] of [['A', p.a_label], ['B', p.b_label]]) {
+    cue(k, tag, L - 40 + 40, y, tag === 'A' ? GRAPHITE : GRAPHITE, hash(p.id + tag));
+    k.font = font(46); k.fillStyle = INK; y = wrap(k, label, L + 80, y, R - L - 80, 60, 3) + 50;
+  }
+  const by = CH - 300;
+  rule(k, L, R, by - 110);
+  k.font = font(40, { italic: true }); k.fillStyle = INK_SOFT; k.fillText('Which reads more like you?', L, by - 40);
+  let x = L;
+  for (const [id, label] of [['a', 'A'], ['b', 'B'], ['neither', 'Neither']] as const) {
+    k.strokeStyle = '#3a342b'; k.lineWidth = 3; k.strokeRect(x, by + 10, 56, 56);
+    k.font = font(48); k.fillStyle = INK; k.fillText(label, x + 82, by + 56);
+    const w = 82 + k.measureText(label).width;
+    hits.push({ id: `pick:${id}`, x0: x - 10, x1: x + w + 10, y0: by - 10, y1: by + 86, side: 'left' });
+    if (p.pick === id) tick(k, x, by + 10, hash(p.id + id));
+    x += w + 110;
+  }
+  folio(k, `Calibration, ${i + 1} of ${total}`, 'left');
+  const prints = pair(r, imgs.a, imgs.b, `A. ${p.a_label}`, `B. ${p.b_label}`);
+  return { key: `pair:${p.id}`, left, right, prints, hits, folio: '' };
 }
 
 // ----- The bible: what it has learned, four statements to a page -----
@@ -143,16 +189,11 @@ export function runSpread(m: Moment, i: number, total: number, imgs: { before?: 
   }
   folio(k, `Run, ${i + 1} of ${total}`, 'left');
 
-  const prints: PrintSpec[] = [];
   const shown = imgs.pasted ?? imgs.before;
-  r.fillStyle = '#5d5446'; r.font = font(44, { italic: true });
-  if (shown && imgs.after) {
-    prints.push({ img: shown, x: -.5, y: .32, w: .96, rot: -.01 }, { img: imgs.after, x: .52, y: .32, w: .96, rot: .008 });
-    r.fillText(imgs.pasted ? 'What you pasted.' : 'What you saw.', RL, 1560); r.fillText('What the agent made next.', 905, 1560);
-  } else if (shown) {
-    prints.push({ img: shown, x: 0, y: .25, w: 1.6, rot: -.006, aspect: shown.width / shown.height > 1.1 ? 1.45 : .9 });
-    r.fillText(imgs.pasted ? 'What you pasted.' : 'What you saw.', RL, 1880);
-  } else { r.font = font(44, { italic: true }); r.fillStyle = INK_SOFT; wrap(r, 'No screenshot beside this one. It was judged from words alone.', RL, 600, RR - RL, 56); }
+  let prints: PrintSpec[] = [];
+  if (shown) prints = pair(r, shown, imgs.after, imgs.pasted ? 'What you pasted.' : 'What you saw.', 'What the agent made next.');
+  else if (imgs.after) prints = pair(r, imgs.after, undefined, 'What the agent made next.', '');
+  else { r.font = font(44, { italic: true }); r.fillStyle = INK_SOFT; wrap(r, 'No screenshot beside this one. It was judged from words alone.', RL, 600, RR - RL, 56); }
   r.font = font(32, { family: SANS }); r.fillStyle = INK_FAINT; r.fillText(`Session ${m.id.split(':')[0].slice(0, 8)}, message at line ${m.id.split(':')[1]}`, RL, CH - 110);
   return { key: `run:${m.id}`, left, right, prints, hits: [], folio: `${i + 1}/${total}` };
 }

@@ -34,6 +34,8 @@ const routes: [string, RegExp, (m: RegExpMatchArray, req: IncomingMessage, res: 
   // the run: every moment that showed taste, oldest first, those with a screenshot beside them
   ['GET', /^\/api\/moments$/, () => (open().prepare(`select * from moments where taste = 1 order by at`).all() as MomentRow[]).map(moment)],
   ['GET', /^\/api\/moments\/([^/]+)$/, m => { const r = open().prepare('select * from moments where id = ?').get(decodeURIComponent(m[1])) as MomentRow | undefined; return r ? moment(r) : null; }],
+  ['GET', /^\/api\/pairs$/, async () => { const { pairsWaiting } = await import('./calibrate.ts'); return pairsWaiting().map((p: any) => ({ ...p, a_shot: basename(p.a_shot), b_shot: basename(p.b_shot) })); }],
+  ['POST', /^\/api\/pairs\/([^/]+)$/, async (m, req) => { const { pick } = await import('./calibrate.ts'); const b = await body(req); return pick(m[1], b.pick, b.note); }],
   ['GET', /^\/api\/statements$/, () => (open().prepare('select * from statements where removed = 0 order by weight desc').all() as any[]).map(s => ({ ...s, evidence: json<string[]>(s.evidence, []), edited: !!s.edited }))],
   ['POST', /^\/api\/statements\/([^/]+)$/, async (m, req) => {
     const b = await body(req); const db = open();
@@ -46,8 +48,10 @@ const routes: [string, RegExp, (m: RegExpMatchArray, req: IncomingMessage, res: 
   ['POST', /^\/api\/checks\/([^/]+)\/undo$/, async m => { const { undo } = await import('./check.ts'); return undo(m[1]); }],
   ['POST', /^\/api\/checks\/([^/]+)\/call$/, async (m, req) => {
     const { call, note } = await body(req);
-    if (!['keep', 'undo', 'not-quite'].includes(call)) return { ok: false, error: 'call must be keep, undo or not-quite' };
     const db = open(); const at = new Date().toISOString();
+    // reset clears a call without recording a verdict (used when recording the demo)
+    if (call === 'reset') { db.prepare('update checks set call = null where id = ?').run(m[1]); return { ok: true }; }
+    if (!['keep', 'undo', 'not-quite'].includes(call)) return { ok: false, error: 'call must be keep, undo or not-quite' };
     db.prepare('update checks set call = ? where id = ?').run(call, m[1]);
     db.prepare('insert into verdicts (at, subject, call, note) values (?, ?, ?, ?)').run(at, m[1], call, note ?? null);
     return { ok: true, at };
