@@ -29,6 +29,7 @@ const SCHEMA = {
   properties: {
     verdict: { enum: ['meets', 'misses'] },
     summary: { type: 'string', description: 'one sentence' },
+    previous: { type: 'array', description: 'on a re-check only: one entry per note from last round', items: { type: 'object', required: ['n', 'resolved'], properties: { n: { type: 'integer' }, resolved: { type: 'boolean' } } } },
     notes: { type: 'array', items: { type: 'object', required: ['claim', 'fix', 'severity', 'cite', 'where'], properties: {
       claim: { type: 'string' }, fix: { type: 'string' },
       severity: { enum: ['must', 'should'] },
@@ -43,11 +44,12 @@ You may raise a note only when one of their past judgments, listed below with an
 Never judge from general taste or what you think good design is. If nothing they have said applies, the screen meets their bar.
 "must" means they rejected this exact kind of thing before; "should" means it leans against something they said.
 A past judgment applies only when the situation matches: a remark about a data tool's charts does not apply to a marketing page, and a remark about one project's colours is not a rule for every project. Prefer judgments they have made more than once.
+Past judgments are the person's preferences, with the date and project they were said about. Present them that way. Never claim this page used to look different, that something was approved for it, or that the agent reverted anything: you cannot see its history.
 Every fix must work with the content already on the screen. Never ask for new content, data, numbers, claims or features: change how what is there looks, is arranged and behaves.
 Be specific about where on the screen. Write fixes an agent can act on. At most five notes, the strongest first.`;
 
-const RECHECK = `This is a re-check after the agent tried to fix the notes below. Decide first, for each, whether it is now resolved.
-Raise a new note only if the fix made something clearly worse, or there is an obvious defect. Do not move the goalposts: if last round's must notes are resolved and nothing got clearly worse, the screen meets the bar.`;
+const RECHECK = `This is a re-check after the agent tried to fix the notes below. For each one, say in "previous" whether it is now resolved.
+In "notes", list only last round's notes that are still unresolved (reworded if useful), plus anything the fix clearly made worse and any obvious defect. Do not raise new taste notes about things that were already there last round: the goalposts do not move.`;
 
 export async function judge(image: string, o: { project?: string; context?: string; previous?: Note[]; log?: (s: string) => void } = {}): Promise<Verdict> {
   const log = o.log ?? (() => {});
@@ -75,7 +77,7 @@ export async function judge(image: string, o: { project?: string; context?: stri
   ].filter(Boolean).join('\n');
 
   log('Claude is judging...');
-  const { value, cost } = await ask<{ verdict: 'meets' | 'misses'; summary: string; notes: (Omit<Note, 'quote' | 'when' | 'own'> & { cite: string })[] }>(prompt, { model: MODELS.judge, schema: SCHEMA, system: SYSTEM, images: [image] });
+  const { value, cost } = await ask<{ verdict: 'meets' | 'misses'; summary: string; previous?: { n: number; resolved: boolean }[]; notes: (Omit<Note, 'quote' | 'when' | 'own'> & { cite: string })[] }>(prompt, { model: MODELS.judge, schema: SCHEMA, system: SYSTEM, images: [image] });
 
   // the quote under every note comes from the archive; a cite that is not real makes the note Understudy's own
   const notes: Note[] = value.notes.slice(0, 6).map(n => {
@@ -84,14 +86,23 @@ export async function judge(image: string, o: { project?: string; context?: stri
     const where = n.where && n.where.w > 0 && n.where.h > 0 ? { x: clamp(n.where.x), y: clamp(n.where.y), w: clamp(n.where.w), h: clamp(n.where.h) } : null;
     return { claim: n.claim, fix: n.fix, severity: r ? n.severity : 'should', cite: r?.id ?? null, quote: r?.quote ?? null, when: r ? when(r) : null, own: !r, where };
   });
-  const verdict = notes.some(n => n.severity === 'must') ? 'misses' : 'meets';
+  // On a re-check the verdict follows last round's notes: it misses while one of last
+  // round's musts is unresolved or the fix broke something outright. A fresh taste note
+  // can still be raised, but only as a "should", so the bar cannot move between rounds.
+  let verdict: 'meets' | 'misses' = notes.some(n => n.severity === 'must') ? 'misses' : 'meets';
+  if (o.previous?.length) {
+    const open = o.previous.map((p, i) => ({ p, resolved: value.previous?.find(x => x.n === i + 1)?.resolved ?? false })).filter(x => !x.resolved && x.p.severity === 'must');
+    for (const n of notes) if (!n.own && n.severity === 'must' && !open.some(x => x.p.cite === n.cite)) n.severity = 'should';
+    verdict = open.length || notes.some(n => n.own && n.severity === 'must') ? 'misses' : 'meets';
+  }
   return { verdict, summary: value.summary, notes, look, cost };
 }
 
 // What an agent reads when its work misses: the notes as instructions, each with its reason.
 export function forAgent(v: Verdict, round: number, max: number): string {
   const lines = [`Understudy held this screen to the user's design bar and it misses (round ${round} of ${max}). Fix these, then stop again to be re-checked:`];
-  v.notes.forEach((n, i) => lines.push(`${i + 1}. ${n.claim} Fix: ${n.fix}${n.quote ? ` (They said, ${n.when}: "${n.quote}")` : ''}`));
+  v.notes.forEach((n, i) => lines.push(`${i + 1}. [${n.severity}] ${n.claim} Fix: ${n.fix}${n.quote ? ` (Their preference, said ${n.when}: "${n.quote}")` : ''}`));
+  lines.push('The quotes are the person\'s general preferences from their own past sessions, not this page\'s history. "should" notes are optional.');
   lines.push('Change only what these notes cover. Do not restyle anything else, and do not add or invent content, data, numbers or claims: change how what is already there looks and is arranged.');
   return lines.join('\n');
 }

@@ -1,0 +1,18 @@
+* { box-sizing: border-box; }
+body { margin: 0; background: #f3f0e8; color: #1d1b17; font: 16px/1.5 "Inter Tight", system-ui, sans-serif; }
+.top { display: flex; justify-content: space-between; align-items: baseline; padding: 28px 64px; border-bottom: 1px solid #d9d3c4; }
+.mark { font: 600 20px Fraunces, serif; }
+nav a { margin-left: 28px; color: #1d1b17; text-decoration: none; }
+nav a:hover { text-decoration: underline; text-underline-offset: 4px; }
+main { max-width: 1040px; margin: 0 auto; padding: 96px 64px; }
+h1 { font: 400 56px/1.08 Fraunces, serif; letter-spacing: -.015em; max-width: 820px; margin: 0 0 20px; }
+.sub { color: #5d574b; font-size: 19px; margin: 0 0 72px; }
+table { width: 100%; border-collapse: collapse; }
+td { padding: 22px 0; border-top: 1px solid #d9d3c4; vertical-align: baseline; }
+tr:last-child td { border-bottom: 1px solid #d9d3c4; }
+.n { width: 64px; color: #9a927f; font-variant-numeric: tabular-nums; }
+td b { font: 600 22px Fraunces, serif; margin-right: 14px; }
+td span { color: #5d574b; }
+.stack { color: #8a8270; font-size: 14px; width: 220px; }
+.links { text-align: right; width: 140px; }
+.links a { margin-left: 18px; color: #a3271c; }
