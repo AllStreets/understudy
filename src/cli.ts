@@ -8,6 +8,7 @@ import { check, undo } from './check.ts';
 import { stopHook } from './hook.ts';
 import { serve } from './server.ts';
 import { calibrate } from './calibrate.ts';
+import * as teach from './teach.ts';
 
 const [cmd, ...args] = process.argv.slice(2);
 
@@ -62,6 +63,17 @@ const commands: Record<string, () => Promise<void> | void> = {
     const r = await stopHook(raw); if (r.stdout) process.stdout.write(r.stdout); process.exitCode = r.code;
   },
   serve() { serve(); },
+  async teach() {
+    const [sub, ...rest] = args; const cwd = process.cwd();
+    if (sub === 'start') { const l = teach.start(rest.join(' ') || 'task', cwd); console.log(`Watching. Do "${l.name}" in Claude Code here, then run: understudy teach stop`); return; }
+    if (sub === 'stop') {
+      const l = await teach.stop(cwd, console.log); const p = JSON.parse(l.procedure!);
+      console.log(`\n${p.name}: ${p.purpose}\n${p.steps.map((x: string, i: number) => `  ${i + 1}. ${x}`).join('\n')}\n  Check: ${p.check}\n\nRehearse it with: understudy teach rehearse ${l.id}`); return;
+    }
+    if (sub === 'rehearse') { const id = rest[0]; for (let i = 0; i < Number(rest[1] ?? 2); i++) await teach.rehearse(id, console.log); return; }
+    if (sub === 'install') { const r = teach.install(rest[0]); console.log(r.ok ? `Installed as a Claude Code skill: ${r.path}` : `Not installed: ${r.reason}`); return; }
+    console.log('understudy teach start <name> | stop | rehearse <id> [times] | install <id>');
+  },
   async calibrate() {
     const url = args.find(a => !a.startsWith('--')); if (!url) return console.log('understudy calibrate <url of one of your pages> [--n 6] [--project name]');
     const ni = args.indexOf('--n'), pi = args.indexOf('--project');
@@ -85,6 +97,7 @@ const commands: Record<string, () => Promise<void> | void> = {
   index     embed your judgments with a local model (Ollama) for matching
   check     hold a page or screenshot to your bar: understudy check http://localhost:5173
   undo      take back a fix: understudy undo <check id>
+  teach     teach a task by doing it: teach start <name>, then teach stop, teach rehearse <id>, teach install <id>
   calibrate render one of your pages in pairs that differ in one thing, to pick between in the book
   serve     open the prompt book on http://127.0.0.1:4730
   hook      the Claude Code Stop hook (reads its JSON on stdin)

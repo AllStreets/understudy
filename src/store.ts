@@ -90,6 +90,20 @@ create table if not exists pairs (
   pick text,                    -- a, b or neither
   picked_at text
 );
+-- a task taught by doing it once, written down, rehearsed in a copy, and installed on request
+create table if not exists lessons (
+  id text primary key,
+  name text not null,
+  cwd text not null,
+  started_at text not null,
+  stopped_at text,
+  head text, snap text,         -- the project as it was when the lesson began
+  transcript text,
+  procedure text,               -- json: the written-down task
+  status text not null,         -- recording, written, rehearsing, ready, installed, abandoned
+  rehearsals text not null,     -- json: each rehearsal and how it went
+  installed text                -- the skill file, once it goes on
+);
 create table if not exists statements (
   id text primary key,
   text text not null,           -- a plain sentence about the person's taste

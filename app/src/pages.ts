@@ -125,6 +125,58 @@ export function pairSpread(p: Pair, i: number, total: number, imgs: { a: HTMLIma
   return { key: `pair:${p.id}`, left, right, prints, hits, folio: '' };
 }
 
+// ----- Rehearsals: a taught task, written down, and how its rehearsals went -----
+export type Lesson = { id: string; name: string; cwd: string; started_at: string; status: string; installed: string | null;
+  procedure: { name: string; purpose: string; inputs: { name: string; example: string }[]; steps: string[]; check: string } | null;
+  rehearsals: { at: string; passed: boolean; seconds: number; cost: number }[] };
+export function lessonSpread(l: Lesson, i: number, total: number): Spread {
+  const left = blank('right'), right = blank('left'), k = ctx(left), r = ctx(right), hits: Hit[] = [];
+  const p = l.procedure!;
+  marginRule(k);
+  let y = header(k, p.name.replace(/-/g, ' ').replace(/^./, c => c.toUpperCase()), `Taught in ${l.cwd.split('/').pop()} on ${day(l.started_at)}. ${p.purpose}`, L, R) + 30;
+  if (p.inputs?.length) {
+    k.font = font(32, { family: SANS }); k.fillStyle = INK_FAINT; k.fillText('Each time, it needs', L, y); y += 56;
+    for (const inp of p.inputs) { k.font = font(40); k.fillStyle = INK; y = wrap(k, `${inp.name}, like \u201C${inp.example}\u201D`, L, y, R - L, 52, 2) + 6; }
+    y += 40;
+  }
+  k.font = font(32, { family: SANS }); k.fillStyle = INK_FAINT; k.fillText('The steps', L, y); y += 70;
+  // the steps, sized to fit above the foot of the page
+  const stepsAt = (sc: number, kk: Ctx) => { let yy = y; p.steps.forEach((st, j) => { cue(kk, String(j + 1), L - 40, yy, GRAPHITE, hash(l.id) + j); kk.font = font(42 * sc); kk.fillStyle = INK; yy = wrap(kk, st.replace(/`/g, ''), L + 40, yy, R - L - 40, 54 * sc, 4) + 34 * sc; }); return yy; };
+  const scratch = document.createElement('canvas'); scratch.width = CW; scratch.height = CH * 2;
+  const sc = [1, .9, .8, .72].find(v => stepsAt(v, scratch.getContext('2d')!) < CH - 470) ?? .72;
+  stepsAt(sc, k);
+  // the check, typed as it will be run
+  const cy0 = CH - 420; rule(k, L, R, cy0 - 50, .25);
+  k.font = font(32, { family: SANS }); k.fillStyle = INK_FAINT; k.fillText('It counts as done when this passes', L, cy0);
+  k.font = '400 30px ui-monospace, Menlo, monospace'; k.fillStyle = '#3c3529'; wrap(k, p.check, L, cy0 + 56, R - L, 40, 4);
+  folio(k, `Rehearsals, ${i + 1} of ${total}`, 'left');
+
+  // the right page: the rehearsal log, and the call to let it go on
+  let ry = 210; r.font = font(74); r.fillStyle = INK; r.fillText('Rehearsals', RL, ry); ry += 70;
+  r.font = font(44, { italic: true }); r.fillStyle = INK_SOFT; wrap(r, 'Each one runs in a throwaway copy of the project, put back to how it was before you began.', RL, ry, RR - RL, 54, 2); ry += 160;
+  rule(r, RL, RR, ry - 60);
+  l.rehearsals.forEach((h, j) => {
+    r.font = font(46); r.fillStyle = INK; r.fillText(`Rehearsal ${j + 1}`, RL, ry);
+    r.font = font(32, { family: SANS }); r.fillStyle = INK_FAINT; r.fillText(`${day(h.at)}, ${h.seconds} seconds, ${Math.round(h.cost * 100)} cents`, RL + 330, ry);
+    r.font = font(46, { italic: true }); r.fillStyle = h.passed ? '#2f5a35' : '#8f3424'; r.textAlign = 'right'; r.fillText(h.passed ? 'passed' : 'failed', RR, ry); r.textAlign = 'left';
+    if (h.passed) tick(r, RR - 230, ry - 52, hash(l.id + j)); else pencil(r, [[RR - 210, ry - 40], [RR - 150, ry + 6]], { color: RED, width: 6, alpha: .35 });
+    rule(r, RL, RR, ry + 40, .15); ry += 110;
+  });
+  if (!l.rehearsals.length) { r.font = font(44, { italic: true }); r.fillStyle = INK_SOFT; r.fillText('Not rehearsed yet.', RL, ry); }
+  const by = CH - 300;
+  rule(r, RL, RR, by - 110);
+  if (l.status === 'installed') {
+    r.font = font(46); r.fillStyle = INK; r.fillText('On. Claude Code can do this now.', RL, by - 20);
+    r.font = font(32, { family: SANS }); r.fillStyle = INK_FAINT; wrap(r, (l.installed ?? '').replace(/^\/Users\/[^/]+/, '~'), RL, by + 44, RR - RL, 42, 2);
+  } else if (l.status === 'ready') {
+    r.font = font(40, { italic: true }); r.fillStyle = INK_SOFT; r.fillText('Passed twice in a row. Your call', RL, by - 40);
+    r.strokeStyle = '#3a342b'; r.lineWidth = 3; r.strokeRect(RL, by + 10, 56, 56);
+    r.font = font(48); r.fillStyle = INK; r.fillText('Let it go on', RL + 82, by + 56);
+    hits.push({ id: 'go-on', x0: RL - 10, x1: RL + 82 + r.measureText('Let it go on').width + 10, y0: by - 10, y1: by + 86, side: 'right' });
+  } else { r.font = font(40, { italic: true }); r.fillStyle = INK_SOFT; wrap(r, 'It goes on once it passes two rehearsals in a row.', RL, by - 40, RR - RL, 52, 2); }
+  return { key: `lesson:${l.id}`, left, right, prints: [], hits, folio: '', state: l.status === 'installed' ? 'go' : l.status === 'ready' ? 'standby' : 'dark' };
+}
+
 // ----- The bible: what it has learned, four statements to a page -----
 export function bibleSpreads(st: Statement[], byId: Map<string, Moment>, summary: { sessions: number; taste: number }): Spread[] {
   const momentOf = (rid: string) => byId.get(rid.split('#')[0]);

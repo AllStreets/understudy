@@ -5,6 +5,7 @@
 <p align="center">
   <a href="#what-it-learns">What it learns</a>&nbsp;&nbsp;&nbsp;
   <a href="#holding-an-agent-to-it">Holding an agent to it</a>&nbsp;&nbsp;&nbsp;
+  <a href="#teaching-it-a-task">Teaching it a task</a>&nbsp;&nbsp;&nbsp;
   <a href="#the-book">The book</a>&nbsp;&nbsp;&nbsp;
   <a href="#local-and-claude">Local and Claude</a>&nbsp;&nbsp;&nbsp;
   <a href="#set-it-up">Set it up</a>&nbsp;&nbsp;&nbsp;
@@ -54,12 +55,31 @@ Here is the sample run. A headless agent was asked to add one line under the her
 
 <img src="docs/media/call.jpg" alt="Your call: five notes on the left, each with the designer's own words in red; the before with red pencil rings and the after on the right; the cue light on standby" />
 
+## Teaching it a task
+
+Taste is one half. The other is the chores you walk an agent through again and again. Teach one by doing it once:
+
+```sh
+understudy teach start release a patch
+# ...do the task in Claude Code as you normally would...
+understudy teach stop
+```
+
+Understudy reads that stretch of the session and has Claude write it down as a procedure: what it's for, what changes each time (taken from what you used), the steps, and a shell command that proves it worked. That check has to earn its place: it must pass on the project as you left it and fail on a copy put back to how it was before you started. A check that can't tell the two apart proves nothing, so Claude is asked for a better one.
+
+Then it rehearses. Each rehearsal is a headless agent working from the written procedure in a throwaway APFS clone of the project, rolled back to where you began, followed by the check. The agent's shell may only run the commands your demonstration ran, and never anything that deletes, escalates, publishes or reaches the network, whatever the demonstration did. Once it passes twice in a row, the book offers to let it go on. Only when you tick that box is it installed as a Claude Code skill.
+
+<img src="docs/media/rehearsals.jpg" alt="Rehearsals: the taught task's steps and check on the left; two rehearsals ticked as passed on the right, and a box to let it go on" />
+
+In the sample above, a patch release was demonstrated once and rehearsed twice: 11 seconds and 7 cents each.
+
 ## The book
 
 Everything Understudy knows opens as a stage manager's prompt book on a desk, built in three.js the way a product shot is lit: one warm lamp, real shadows, paper you can turn.
 
 - **Your call** holds each fix waiting on you. The notes are typed on the left, your words in red, with the cue numbers circled in pencil. The before and after are pasted on the right. Click a print and it lifts off the page so you can read it. Tick Keep it, Undo fix or Not quite, and the cue light on the desk goes from red to green. Undo reverses the fix's exact diff, and refuses if the code has moved on underneath it.
 - **The bible** is what it has learned, one statement at a time.
+- **Rehearsals** is every task you've taught, its steps and check, and how each rehearsal went.
 - **Calibration** shows two renders of one of your own pages that differ in exactly one thing. Pick the one that reads more like you, and the next pair turns up.
 - **The run** is every judgment it learned from, one to a spread: what the agent had said, what you wrote with the judgment underlined in red, what you were looking at, and what the agent made next.
 
@@ -105,6 +125,7 @@ You can also check any page or screenshot by hand:
 understudy check http://localhost:5173/
 understudy undo <check id>
 understudy calibrate http://localhost:5173/    # pairs to pick between in the book
+understudy teach start <name> / teach stop / teach rehearse <id> / teach install <id>
 ```
 
 To try it without any history of your own, build the sample and open the book on it:
@@ -122,7 +143,7 @@ Everything stays in `~/Library/Application Support/Understudy`: the archive, the
 
 The design document is in [docs/specs](docs/specs/2026-11-07-understudy-design.md). Still to build:
 
-- **Teaching a task**: do it once while Understudy watches, and it writes the task down as a procedure, rehearses it in a copy of the project, and offers to take it over once a rehearsal passes.
+- **Teaching by hand**: tasks done outside Claude Code (in the terminal, an editor or a browser) can't be watched yet.
 - **A local scorer** trained on your Keep and Not quite calls, so more of the judging moves onto your Mac over time.
 
 ## License

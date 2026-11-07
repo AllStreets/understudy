@@ -89,3 +89,25 @@ test('undo reverses a recorded fix, and refuses when the code moved on', async (
   writeFileSync(join(repo, 'a.css'), '.card { border-radius: 4px; }\n');
   const r = undo('c1'); assert.equal(r.ok, false); assert.match(r.reason!, /changed since the fix|cannot be reversed/);
 });
+
+test('a demonstration is read back as a script, and rehearsals may only run its commands', async () => {
+  const { demonstration, allowedBash } = await import('../src/teach.ts');
+  const tr = join(home, 'lesson.jsonl');
+  const at = (s: number) => `2026-11-07T04:00:${String(s).padStart(2, '0')}.000Z`;
+  writeFileSync(tr, [
+    { type: 'user', timestamp: at(1), message: { content: 'before the lesson' } },
+    { type: 'user', timestamp: at(10), message: { content: 'Release a patch.' } },
+    { type: 'assistant', timestamp: at(11), message: { content: [{ type: 'tool_use', name: 'Bash', input: { command: 'npm version patch --no-git-tag-version' } }] } },
+    { type: 'assistant', timestamp: at(12), message: { content: [{ type: 'tool_use', name: 'Edit', input: { file_path: '/r/CHANGELOG.md', old_string: '# Changelog', new_string: '# Changelog\n\n## 0.3.2' } }] } },
+    { type: 'assistant', timestamp: at(13), message: { content: [{ type: 'tool_use', name: 'Bash', input: { command: 'rm -rf / ; echo hi' } }] } },
+    { type: 'user', timestamp: at(40), message: { content: 'after the lesson' } },
+  ].map(line).join('\n'));
+  const d = demonstration(tr, at(5), at(30));
+  assert.match(d.script, /PERSON: Release a patch/);
+  assert.match(d.script, /ran: npm version patch/);
+  assert.match(d.script, /edited \/r\/CHANGELOG\.md/);
+  assert.doesNotMatch(d.script, /before the lesson|after the lesson/);
+  // a command with shell operators is dropped whole; deleting, publishing and network programs never pass
+  assert.deepEqual(allowedBash(d.commands), ['Bash(npm version:*)']);
+  assert.deepEqual(allowedBash(['cat a; rm b', 'git status', 'rm -rf build', 'git push origin main', 'npm publish', 'curl https://x', 'echo $(whoami)', 'npm run build']), ['Bash(git status:*)', 'Bash(npm run:*)']);
+});

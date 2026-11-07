@@ -91,3 +91,18 @@ A fix is recorded as the git diff the agent made between the before and after sc
 5. Claude Code plugin: check, fix, before and after, end to end on a real project.
 6. README with real media.
 Later: calibration, teaching tasks, the local scorer, the network.
+
+## Built on the night of 2026-11-07
+
+Everything in milestones 1 to 6 is built, plus calibration and teaching a task. What changed from the plan, and why:
+
+- **Readings, not one reading per message.** A long message often holds several judgments; the reader returns each, and drops any quote that is not really in the message.
+- **Claude calls carry nothing extra.** The first judge call cost about $1 because Claude Code loaded every MCP server's tool list and opened the image with a tool over three turns. Calls now run with settings, plugins, MCP and tools off and send images inside the message: about 4 cents a check.
+- **Fixes may not add content.** In the first end-to-end run the agent invented statistics to satisfy a note. Fixes now change how existing content looks and is arranged, never what it says.
+- **Notes are preferences, not history.** In the second run the judge told the agent it had reversed an approved choice on a page that never looked that way, and the agent refused. Notes now quote preferences with their date and project and never claim a page's history.
+- **Re-checks cannot move the bar.** The judge marks last round's notes resolved or not and the verdict follows that; new taste notes in a re-check are only ever "should".
+- **README media comes from a sample dataset**, never from the author's own sessions (tools/sample.ts, a made-up designer on the fixture site).
+- **A taught task's check must tell before from after**, checked against the project as left and a clone put back to the start.
+- **Rehearsals may only run the demonstration's commands**, minus anything that deletes, escalates, publishes or reaches the network. A test caught the first version allowing `rm -rf`.
+
+Not built yet: watching tasks done by hand outside Claude Code; the local scorer trained on Keep and Not quite calls; sharing proven tasks between machines.

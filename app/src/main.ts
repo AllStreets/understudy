@@ -2,10 +2,11 @@ import { createRoom, THREE } from './kit.ts';
 import { createBinder } from './binder.ts';
 import { createPencil, createPrints, createCueBox, createTabs, printCanvas } from './props.ts';
 import { loadFonts, CW, CH } from './paper.ts';
-import { callSpread, bibleSpreads, runSpread, pairSpread, bake, type Spread, type Moment, type Statement, type Check, type Pair } from './pages.ts';
+import { callSpread, bibleSpreads, runSpread, pairSpread, lessonSpread, bake, type Spread, type Moment, type Statement, type Check, type Pair, type Lesson } from './pages.ts';
 
 const $ = (s: string) => document.querySelector(s) as HTMLElement;
-const api = <T>(p: string): Promise<T> => fetch(p).then(r => r.json());
+// a section the server cannot answer for is simply left out of the book
+const api = <T>(p: string, fallback?: T): Promise<T> => fetch(p).then(r => r.ok ? r.json() : fallback).catch(() => fallback) as Promise<T>;
 const imgCache = new Map<string, Promise<HTMLImageElement | undefined>>();
 const img = (src?: string) => {
   if (!src) return Promise.resolve(undefined);
@@ -15,17 +16,19 @@ const img = (src?: string) => {
 const shotUrl = (s: string) => s.startsWith('/') || s.startsWith('http') ? s : `/shot/${s}`;
 
 await loadFonts();
-const [summary, moments, statements, checks, pairs] = await Promise.all([
-  api<{ sessions: number; taste: number; design: number }>('/api/summary'), api<Moment[]>('/api/moments'), api<Statement[]>('/api/statements'), api<Check[]>('/api/checks'), api<Pair[]>('/api/pairs'),
+const [summary, moments, statements, checks, pairs, lessons] = await Promise.all([
+  api<{ sessions: number; taste: number; design: number }>('/api/summary'), api<Moment[]>('/api/moments', []), api<Statement[]>('/api/statements', []), api<Check[]>('/api/checks', []), api<Pair[]>('/api/pairs', []), api<Lesson[]>('/api/lessons', []),
 ]);
 const byId = new Map(moments.map(m => [m.id, m]));
 const waiting = checks.filter(c => !c.call).concat(checks.filter(c => c.call));
 
 // ----- the book: a list of spreads, built lazily (each run spread loads its screenshots) -----
-type Entry = { section: 'call' | 'calibrate' | 'bible' | 'run'; build: () => Promise<Spread> };
+type Entry = { section: 'call' | 'calibrate' | 'rehearse' | 'bible' | 'run'; build: () => Promise<Spread> };
 const book: Entry[] = [];
 waiting.forEach((c, i) => book.push({ section: 'call', build: async () => callSpread(c, i, waiting.length, { before: (await img(shotUrl(c.before_shot)))!, after: c.after_shot ? await img(shotUrl(c.after_shot)) : undefined }) }));
 pairs.forEach((p, i) => book.push({ section: 'calibrate', build: async () => pairSpread(p, i, pairs.length, { a: (await img(shotUrl(p.a_shot)))!, b: (await img(shotUrl(p.b_shot)))! }) }));
+const taught = lessons.filter(l => l.procedure);
+taught.forEach((l, i) => book.push({ section: 'rehearse', build: async () => lessonSpread(l, i, taught.length) }));
 const bible = bibleSpreads(statements, byId, summary);
 bible.forEach(s => book.push({ section: 'bible', build: async () => s }));
 const run = moments.filter(m => m.before.length || m.pasted.length || m.after.length).concat(moments.filter(m => !(m.before.length || m.pasted.length || m.after.length)));
@@ -48,6 +51,7 @@ const cuebox = createCueBox(room);
 const tabs = createTabs(room, [
   ...(waiting.length ? [{ id: 'call', label: 'Your call' }] : []),
   ...(pairs.length ? [{ id: 'calibrate', label: 'Calibration' }] : []),
+  ...(taught.length ? [{ id: 'rehearse', label: 'Rehearsals' }] : []),
   { id: 'bible', label: 'The bible' }, { id: 'run', label: 'The run' },
 ]);
 
@@ -59,7 +63,7 @@ async function settle(i: number) {
   prints.set(current.prints);
   cuebox.set(current.state ?? 'dark');
   tabs.active(book[i].section);
-  document.title = `Understudy, ${({ call: 'your call', calibrate: 'calibration', bible: 'the bible', run: 'the run' })[book[i].section]}`;
+  document.title = `Understudy, ${({ call: 'your call', calibrate: 'calibration', rehearse: 'rehearsals', bible: 'the bible', run: 'the run' })[book[i].section]}`;
   // build the neighbours ahead of time so turns start at once
   for (const j of [i + 1, i - 1]) if (book[j]) spreadAt(j).then(bakedOf);
 }
@@ -123,6 +127,14 @@ addEventListener('pointerdown', async e => {
   const tab = tabs.pick(r); if (tab) { const i = book.findIndex(b => b.section === tab); if (i >= 0) go(i); return; }
   const ph = pageHit(r);
   if (ph?.hit?.id.startsWith('call:')) return call(ph.hit.id.slice(5));
+  if (ph?.hit?.id === 'go-on') {
+    const l = taught.find(x => current.key === `lesson:${x.id}`); if (!l) return;
+    const r = await fetch(`/api/lessons/${l.id}/install`, { method: 'POST' }).then(r => r.json()) as { ok: boolean; path?: string; reason?: string };
+    if (!r.ok) { note(r.reason ?? 'Could not install it.'); return; }
+    l.status = 'installed'; l.installed = r.path ?? null; built.delete(at); await settle(at);
+    note('It is on. Claude Code will use it when the task comes up.');
+    return;
+  }
   if (ph?.hit?.id.startsWith('pick:')) {
     const p = pairs.find(x => current.key === `pair:${x.id}`); if (!p) return;
     p.pick = ph.hit.id.slice(5);

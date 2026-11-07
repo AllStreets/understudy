@@ -124,8 +124,8 @@ export function createTabs(room: Room, tabs: Tab[]) {
     k.fillStyle = 'rgba(60,45,25,.07)'; for (let x = 0; x < 128; x += 4) k.fillRect(x, 0, 1, 440);
     k.save(); k.translate(78, 220); k.rotate(Math.PI / 2); k.font = font(44, { family: SERIF }); k.fillStyle = '#2e2719'; k.textAlign = 'center'; k.fillText(t.label, 0, 14); k.restore();
     const face = new THREE.MeshStandardMaterial({ map: tex(c), roughness: .8 }), edge = new THREE.MeshStandardMaterial({ color: colors[i % colors.length], roughness: .85 });
-    const m = new THREE.Mesh(new THREE.BoxGeometry(.18, .62, .006), [edge, edge, edge, edge, face, edge]);
-    m.position.set(rightX + PW / 2 + .07, PH / 2 - .5 - i * .7, .16 + i * .004); m.castShadow = m.receiveShadow = true;
+    const m = new THREE.Mesh(new THREE.BoxGeometry(.18, tabs.length > 4 ? .5 : .62, .006), [edge, edge, edge, edge, face, edge]);
+    m.position.set(rightX + PW / 2 + .07, PH / 2 - .42 - i * (tabs.length > 4 ? .56 : .7), .16 + i * .004); m.castShadow = m.receiveShadow = true;
     m.userData.tab = t.id; scene.add(m); meshes.push(m);
   });
   function active(id: string) { for (const m of meshes) m.position.x = rightX + PW / 2 + (m.userData.tab === id ? .1 : .07); }
