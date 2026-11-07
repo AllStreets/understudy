@@ -41,10 +41,12 @@ await click('print:1', 2600); await page.mouse.down(); await page.mouse.up(); aw
 await click('call:keep', 2400);
 // calibration: pick one, and the next pair turns up
 await click('tab:calibrate', 2600); await click('pick:b', 3200);
+// a taught task and its rehearsals (looked at, never installed: that would write a real skill)
+await click('tab:rehearse', 3400);
 // the bible, then the run
 await click('tab:bible', 2800); await click('tab:run', 2600); await click('next', 3000);
 // put the call back the way it was, so recording leaves no trace
-await page.evaluate(() => fetch('/api/checks').then(r => r.json()).then(cs => Promise.all(cs.map(c => fetch(`/api/checks/${c.id}/call`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ call: 'reset' }) })))));
+await page.evaluate(() => fetch('/api/checks').then(r => r.json()).then(cs => Promise.all(cs.map(c => fetch(`/api/checks/${c.id}/call`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-understudy': '1' }, body: JSON.stringify({ call: 'reset' }) })))));
 await ctx.close(); await browser.close();
 
 const webm = join(dir, readdirSync(dir).find(f => f.endsWith('.webm')));

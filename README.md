@@ -20,7 +20,7 @@ If you build with a coding agent, you re-teach it your taste in every session. I
 Those judgments are already written down. They're in your Claude Code session logs, in your own words, next to the screenshots you were reacting to. Understudy reads them, works out the design bar they add up to, and holds every agent's UI work to that bar before you see it. When a screen misses, the agent fixes it, and you get the before and after with the reasons. Every reason cites the moment you taught it, in the words you used.
 
 <p align="center">
-  <img src="docs/media/demo.gif" alt="The prompt book: the before print lifts off the page to be read, Keep it is ticked in pencil and the cue light turns green, a calibration pair is picked, then the pages turn to the bible and the run" width="880" />
+  <img src="docs/media/demo.gif" alt="The prompt book: the before print lifts off the page to be read, Keep it is ticked in pencil and the cue light turns green, a calibration pair is picked, a taught task shows its two passed rehearsals, then the pages turn to the bible and the run" width="880" />
 </p>
 <p align="center"><sub>Every image here uses the sample dataset in <code>tools/sample.ts</code>, a made-up designer working on a made-up studio site. The fix shown was made by a real Claude Code agent under Understudy's hook.</sub></p>
 

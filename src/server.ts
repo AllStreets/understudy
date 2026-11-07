@@ -63,6 +63,12 @@ const routes: [string, RegExp, (m: RegExpMatchArray, req: IncomingMessage, res: 
 export function serve(port = PORT) {
   const server = createServer(async (req, res) => {
     const url = new URL(req.url ?? '/', 'http://x');
+    // Only this machine, addressed by name: a page elsewhere that rebinds its own domain to
+    // 127.0.0.1 still sends its own Host. Writes must carry a header a browser will not send
+    // cross-origin without a preflight, which this server never grants.
+    const host = (req.headers.host ?? '').replace(/:\d+$/, '');
+    if (!['127.0.0.1', 'localhost', '[::1]'].includes(host)) { res.writeHead(403); return res.end(); }
+    if (req.method !== 'GET' && req.headers['x-understudy'] !== '1') return send(res, 403, { error: 'writes need the x-understudy header' });
     try {
       const img = url.pathname.match(/^\/img\/([a-f0-9]{8,40})$/);
       if (img) { const r = open().prepare('select path from images where sha = ?').get(img[1]) as { path: string } | undefined; return r ? file(res, r.path, true) : (res.writeHead(404), res.end()); }

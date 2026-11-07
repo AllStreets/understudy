@@ -6,6 +6,8 @@ import { callSpread, bibleSpreads, runSpread, pairSpread, lessonSpread, bake, ty
 
 const $ = (s: string) => document.querySelector(s) as HTMLElement;
 // a section the server cannot answer for is simply left out of the book
+// every write carries the header the server asks for
+const post = (p: string, body?: unknown) => fetch(p, { method: 'POST', headers: { 'content-type': 'application/json', 'x-understudy': '1' }, body: body === undefined ? undefined : JSON.stringify(body) });
 const api = <T>(p: string, fallback?: T): Promise<T> => fetch(p).then(r => r.ok ? r.json() : fallback).catch(() => fallback) as Promise<T>;
 const imgCache = new Map<string, Promise<HTMLImageElement | undefined>>();
 const img = (src?: string) => {
@@ -106,11 +108,11 @@ function pageHit(r: THREE.Raycaster) {
 async function call(choice: string) {
   const check = waiting.find(c => current.key === `call:${c.id}`); if (!check) return;
   if (choice === 'undo' && check.call !== 'undo') {
-    const r = await fetch(`/api/checks/${check.id}/undo`, { method: 'POST' }).then(r => r.json()) as { ok: boolean; reason?: string };
+    const r = await post(`/api/checks/${check.id}/undo`).then(r => r.json()) as { ok: boolean; reason?: string };
     if (!r.ok) { note(r.reason ?? 'Could not undo.'); return; }
   }
   check.call = choice;
-  await fetch(`/api/checks/${check.id}/call`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ call: choice }) });
+  await post(`/api/checks/${check.id}/call`, { call: choice });
   built.delete(at); await settle(at);
 }
 // a slip of paper for the rare thing the book has to say out loud
@@ -129,7 +131,7 @@ addEventListener('pointerdown', async e => {
   if (ph?.hit?.id.startsWith('call:')) return call(ph.hit.id.slice(5));
   if (ph?.hit?.id === 'go-on') {
     const l = taught.find(x => current.key === `lesson:${x.id}`); if (!l) return;
-    const r = await fetch(`/api/lessons/${l.id}/install`, { method: 'POST' }).then(r => r.json()) as { ok: boolean; path?: string; reason?: string };
+    const r = await post(`/api/lessons/${l.id}/install`).then(r => r.json()) as { ok: boolean; path?: string; reason?: string };
     if (!r.ok) { note(r.reason ?? 'Could not install it.'); return; }
     l.status = 'installed'; l.installed = r.path ?? null; built.delete(at); await settle(at);
     note('It is on. Claude Code will use it when the task comes up.');
@@ -138,7 +140,7 @@ addEventListener('pointerdown', async e => {
   if (ph?.hit?.id.startsWith('pick:')) {
     const p = pairs.find(x => current.key === `pair:${x.id}`); if (!p) return;
     p.pick = ph.hit.id.slice(5);
-    await fetch(`/api/pairs/${p.id}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ pick: p.pick }) });
+    await post(`/api/pairs/${p.id}`, { pick: p.pick });
     built.delete(at); await settle(at);
     // the next pair turns up on its own, the way a deck of cards does
     setTimeout(() => { if (book[at + 1]?.section === 'calibrate') go(at + 1); }, 700);
