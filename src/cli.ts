@@ -2,6 +2,11 @@ import { archive } from './archive.ts';
 import { mineAll } from './mine.ts';
 import { open } from './store.ts';
 import { paths } from './paths.ts';
+import { readMoments, distil } from './taste.ts';
+import { indexMoments, available } from './local.ts';
+import { check, undo } from './check.ts';
+import { stopHook } from './hook.ts';
+import { serve } from './server.ts';
 
 const [cmd, ...args] = process.argv.slice(2);
 
@@ -15,6 +20,38 @@ const commands: Record<string, () => Promise<void> | void> = {
     const r = await mineAll((id, n) => args.includes('-v') && console.log(`  ${id.slice(0, 8)}  ${n} messages`));
     console.log(`${r.sessions} sessions, ${r.moments} messages you typed, ${r.design} design judgments, ${r.withImages} with a screenshot beside them.`);
   },
+  async read() {
+    const r = await readMoments(console.log);
+    console.log(`Read ${r.read} judgments for taste. Cost $${r.cost.toFixed(2)}.`);
+  },
+  async distil() {
+    const r = await distil(console.log);
+    const db = open();
+    for (const s of db.prepare('select text, weight from statements order by weight desc').all() as { text: string; weight: number }[]) console.log(`${String(s.weight).padStart(3)}  ${s.text}`);
+    console.log(`${r.statements} statements. Cost $${r.cost.toFixed(2)}.`);
+  },
+  async index() {
+    const a = await available();
+    if (!a.embed) { console.log('Ollama is not running, or nomic-embed-text is not pulled: ollama pull nomic-embed-text'); return; }
+    console.log(`Embedded ${await indexMoments(console.log)} readings.`);
+  },
+  async check() {
+    const target = args.find(a => !a.startsWith('--')); if (!target) return console.log('understudy check <url or image> [--project name]');
+    const pi = args.indexOf('--project');
+    const o = await check(target, { project: pi >= 0 ? args[pi + 1] : undefined, cwd: process.cwd(), log: console.log });
+    console.log(`\n${o.status === 'meets' ? 'Meets your bar.' : 'Misses your bar.'} ${o.result.summary}\n`);
+    o.result.notes.forEach((n, i) => console.log(`${i + 1}. [${n.severity}] ${n.claim}\n   Fix: ${n.fix}\n   ${n.quote ? `You said, ${n.when}: "${n.quote}"` : 'Understudy\'s own note, no past judgment behind it.'}\n`));
+    console.log(`Check ${o.check.id}.`);
+    process.exitCode = o.status === 'meets' ? 0 : 2;
+  },
+  async undo() {
+    const r = undo(args[0] ?? ''); console.log(r.ok ? 'Undone.' : `Not undone: ${r.reason}`); process.exitCode = r.ok ? 0 : 1;
+  },
+  async hook() {
+    let raw = ''; for await (const c of process.stdin) raw += c;
+    const r = await stopHook(raw); if (r.stdout) process.stdout.write(r.stdout); process.exitCode = r.code;
+  },
+  serve() { serve(); },
   async stats() {
     const db = open();
     const rows = db.prepare(`select coalesce(project, '(unknown)') p, count(*) n, sum(before != '[]' or pasted != '[]') shots
@@ -26,8 +63,14 @@ const commands: Record<string, () => Promise<void> | void> = {
 
   archive   copy every Claude Code session log into the archive
   mine      find the messages you typed and what you saw around them
-  stats     design judgments per project
-  serve     open the prompt book (npm run serve)`);
+  read      ask Claude what each judgment says about your taste
+  distil    fold those readings into a short list of statements
+  index     embed your judgments with a local model (Ollama) for matching
+  check     hold a page or screenshot to your bar: understudy check http://localhost:5173
+  undo      take back a fix: understudy undo <check id>
+  serve     open the prompt book on http://127.0.0.1:4730
+  hook      the Claude Code Stop hook (reads its JSON on stdin)
+  stats     design judgments per project`);
   },
 };
 

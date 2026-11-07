@@ -10,7 +10,7 @@ import { open } from './store.ts';
 // broad: the classifier narrows it later, and a missed judgment is worse than an extra one.
 const DESIGN = /\b(look(s|ed|ing)?|ugly|beautiful|gorgeous|pretty|design|ui|ux|font|fonts|type|typography|colou?rs?|layout|spacing|padding|margin|glow|theme|clean|sleek|generic|slop|ai[- ]?(generated|look|ish)|cards?|dashboard|icons?|logo|banner|aesthetic|feel|animation|motion|polish|premium|cheap|amateur|janky|busy|cluttered|dead space|screenshot|mockup|concept|option [a-d1-4]|uniform|consistent|photo ?real|realism|readme|hero|grainy|blurry|crisp|contrast|bold|thin|serif|mono|dark mode|light mode|align(ed|ment)?|centered|overlap|i love|love it|i like|don'?t like|hate|not a fan|wow)\b/i;
 
-const NOT_TYPED = [/^<(command|local-command|system|task-notification|bash-|user-prompt)/, /^\[Request interrupted/, /^Base directory for this skill/, /^This session is being continued/, /^Caveat:/];
+const NOT_TYPED = [/^Stop hook feedback/, /Understudy held this screen/, /^<(command|local-command|system|task-notification|bash-|user-prompt)/, /^\[Request interrupted/, /^Base directory for this skill/, /^This session is being continued/, /^Caveat:/];
 
 export type Img = { sha: string; media: string };
 type Block = { type: string; text?: string; source?: { data: string; media_type: string }; content?: unknown; input?: Record<string, unknown> };
@@ -73,6 +73,8 @@ export async function mineSession(id: string, file: string): Promise<number> {
   ensureDirs();
   const db = open();
   db.prepare('delete from moments where session = ?').run(id);
+  // a resumed session repeats the messages it carried over; keep only the first copy
+  const already = db.prepare('select 1 from moments where at = ? and text = ? and session != ? limit 1');
   const put = db.prepare(`insert into moments (id, session, line, at, project, text, said_before, said_after, pasted, before, after, design)
     values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
 
@@ -89,6 +91,7 @@ export async function mineSession(id: string, file: string): Promise<number> {
     const project = [...hints.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? (open_.cwd ? projectOf(open_.cwd) ?? basename(open_.cwd) : null);
     const seen = open_.before.length > 0 || open_.pasted.length > 0;
     const design = DESIGN.test(open_.text) && (seen || /\b(design|ui|ux|look|readme|font|colou?r|layout|icon|logo|card)/i.test(open_.text)) ? 1 : 0;
+    if (already.get(open_.at, open_.text, id)) { open_ = null; after = []; saidAfter = ''; return; }
     put.run(`${id}:${open_.line}`, id, open_.line, open_.at, project, open_.text, open_.saidBefore.slice(-1200), saidAfter.slice(0, 1200),
       JSON.stringify(open_.pasted.map(i => i.sha)), JSON.stringify(open_.before.map(i => i.sha)), JSON.stringify(after.map(i => i.sha)), design);
     count++; open_ = null; after = []; saidAfter = '';
@@ -154,7 +157,7 @@ export function linkReplies() {
 
 export async function mineAll(onSession?: (id: string, n: number) => void): Promise<{ sessions: number; moments: number; design: number; withImages: number }> {
   const db = open();
-  const sessions = db.prepare('select id, archived from sessions').all() as { id: string; archived: string }[];
+  const sessions = db.prepare('select id, archived from sessions order by first_at').all() as { id: string; archived: string }[];
   for (const s of sessions) { const n = await mineSession(s.id, s.archived); onSession?.(s.id, n); }
   linkReplies();
   const q = (sql: string) => (db.prepare(sql).get() as { n: number }).n;

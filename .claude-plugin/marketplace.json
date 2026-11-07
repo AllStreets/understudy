@@ -1,0 +1,7 @@
+{
+  "name": "understudy",
+  "owner": { "name": "Connor Evans" },
+  "plugins": [
+    { "name": "understudy", "source": "./plugin", "description": "Holds every agent's UI work to your design bar, learned from your own Claude Code sessions." }
+  ]
+}

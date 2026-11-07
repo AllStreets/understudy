@@ -1,0 +1,10 @@
+{
+  "hooks": {
+    "Stop": [
+      { "hooks": [ { "type": "command", "command": "understudy hook", "timeout": 600 } ] }
+    ],
+    "SessionEnd": [
+      { "hooks": [ { "type": "command", "command": "understudy archive >/dev/null 2>&1 || true", "timeout": 60 } ] }
+    ]
+  }
+}

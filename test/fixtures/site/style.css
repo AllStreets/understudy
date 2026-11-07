@@ -1,0 +1,14 @@
+* { box-sizing: border-box; }
+body { margin: 0; background: #0b0d17; color: #e6e8f2; font-family: Inter, system-ui, sans-serif; }
+.hero { text-align: center; padding: 120px 24px 80px; background: radial-gradient(ellipse at top, #3b1d7a 0%, #0b0d17 60%); }
+.eyebrow { letter-spacing: .3em; font-size: 12px; color: #a78bfa; font-family: ui-monospace, monospace; }
+h1 { font-size: 64px; margin: 12px 0; }
+.glow { color: #c4b5fd; text-shadow: 0 0 24px #8b5cf6, 0 0 48px #8b5cf6; }
+.lede { color: #9aa0b8; max-width: 560px; margin: 0 auto 32px; font-size: 18px; }
+.cta { display: inline-block; padding: 14px 28px; border-radius: 999px; background: linear-gradient(90deg, #8b5cf6, #06b6d4); color: white; text-decoration: none; box-shadow: 0 0 32px rgba(139,92,246,.6); }
+.grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; max-width: 1100px; margin: 0 auto; padding: 40px 24px 200px; }
+.card { background: #141829; border: 1px solid #262b45; border-radius: 20px; padding: 28px; box-shadow: 0 0 40px rgba(139,92,246,.15); }
+.card h3 { margin: 0 0 8px; }
+.card p { color: #9aa0b8; }
+.tags span { display: inline-block; padding: 4px 12px; margin: 4px 4px 0 0; border-radius: 999px; background: #262b45; font-size: 12px; }
+.card a { display: inline-block; margin-top: 16px; color: #a78bfa; }

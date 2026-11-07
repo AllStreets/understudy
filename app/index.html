@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Understudy</title>
+<link rel="icon" href="/favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Inter+Tight:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  html, body { margin: 0; height: 100%; background: #0c0a08; overflow: hidden; }
+  #stage { position: fixed; inset: 0; }
+  #stage canvas { display: block; }
+  .vignette { position: fixed; inset: 0; pointer-events: none; background: radial-gradient(120% 90% at 42% 40%, transparent 55%, rgba(5,4,3,.55) 100%); }
+  #slip { position: fixed; left: 50%; bottom: 28px; transform: translate(-50%, 12px) rotate(-.4deg); max-width: 520px; padding: 12px 18px; background: #f2ece0; color: #24201a; font: 15px/1.45 Newsreader, serif; box-shadow: 0 10px 24px -10px rgba(0,0,0,.6); opacity: 0; transition: opacity .25s, transform .25s; pointer-events: none; }
+  #slip.on { opacity: 1; transform: translate(-50%, 0) rotate(-.4deg); }
+  #loading { position: fixed; inset: 0; display: grid; place-items: center; color: #8c8273; font: italic 17px Newsreader, serif; }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<div class="vignette"></div>
+<div id="loading">Setting the desk</div>
+<script type="module" src="/src/main.ts"></script>
+</body>
+</html>

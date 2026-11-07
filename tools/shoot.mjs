@@ -28,6 +28,7 @@ page.on('pageerror', e => console.error('page error:', e.message));
 page.on('console', m => m.type() === 'error' && console.error('console:', m.text()));
 await page.goto(url);
 await page.waitForTimeout(wait);
+for (const js of all('js')) { await page.evaluate(js); await page.waitForTimeout(+opt('after', 2500)); }
 for (const c of all('click')) { const [x, y] = c.split(',').map(Number); await page.mouse.click(x, y); await page.waitForTimeout(1400); }
 await page.screenshot({ path: out });
 await browser.close(); server?.close();

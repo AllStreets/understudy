@@ -33,9 +33,24 @@ create table if not exists moments (
   before text not null,         -- json array of image shas the agent showed since the last message
   after text not null,          -- json array of image shas the agent took in reply
   design integer not null,      -- 1 if it reads as a judgment about how something looks or feels
-  kind text                     -- reject, approve, pick, direct, other (filled by the classifier)
+  kind text,                    -- reject, approve, mixed, direct, pick, other (filled by the reader)
+  taste integer,                -- 1 if the reader found taste in it
+  aspect text,                  -- look, feel, both, none
+  quote text,                   -- the words that carry the judgment, verbatim
+  gist text                     -- the taste it implies, as a sentence
 );
 create index if not exists moments_design on moments(design);
+create index if not exists moments_seen on moments(at, text);
+-- one message can hold several judgments; each gets its own reading
+create table if not exists readings (
+  id text primary key,          -- moment id + '#' + n
+  moment text not null,
+  kind text not null,
+  aspect text not null,
+  quote text not null,          -- verbatim from the message
+  gist text not null            -- the taste it implies, as a sentence
+);
+create index if not exists readings_moment on readings(moment);
 create index if not exists moments_project on moments(project);
 -- what a person decided on a before and after, or a calibration pair
 create table if not exists verdicts (
@@ -56,7 +71,10 @@ create table if not exists checks (
   verdict text not null,        -- meets, misses, stuck
   rounds integer not null default 1,
   patch text,                   -- the fix as a unified diff, for undo
-  call text                     -- keep, undo, not-quite once the person decides
+  call text,                    -- keep, undo, not-quite once the person decides
+  session text,                 -- the agent session it ran in
+  snapshot text,                -- a commit object of the working tree before the fix
+  cwd text                      -- the repository it ran in
 );
 create table if not exists statements (
   id text primary key,
@@ -68,7 +86,7 @@ create table if not exists statements (
   removed integer not null default 0
 );
 create table if not exists embeddings (
-  moment text primary key,
+  moment text primary key,      -- a reading id
   model text not null,
   vec blob not null
 );
@@ -80,6 +98,7 @@ export function open(): DatabaseSync {
   db = new DatabaseSync(paths.db);
   db.exec('pragma journal_mode = wal; pragma foreign_keys = on;');
   db.exec(SCHEMA);
+  for (const col of ['session text', 'snapshot text', 'cwd text']) { try { db.exec(`alter table checks add column ${col}`); } catch { /* already there */ } }
   return db;
 }
 

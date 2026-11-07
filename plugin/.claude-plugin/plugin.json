@@ -1,0 +1,10 @@
+{
+  "name": "understudy",
+  "description": "Holds every agent's UI work to your design bar, learned from your own Claude Code sessions. Fixes what misses and shows you the before and after.",
+  "version": "0.1.0",
+  "author": { "name": "Connor Evans" },
+  "homepage": "https://github.com/AllStreets/understudy",
+  "repository": "https://github.com/AllStreets/understudy",
+  "license": "MIT",
+  "keywords": ["design", "taste", "ui", "review", "screenshots"]
+}
