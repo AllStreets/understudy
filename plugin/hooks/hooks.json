@@ -1,10 +1,10 @@
 {
   "hooks": {
     "Stop": [
-      { "hooks": [ { "type": "command", "command": "understudy hook", "timeout": 600 } ] }
+      { "hooks": [ { "type": "command", "command": "command -v understudy >/dev/null 2>&1 && understudy hook || true", "timeout": 600 } ] }
     ],
     "SessionEnd": [
-      { "hooks": [ { "type": "command", "command": "understudy archive >/dev/null 2>&1 || true", "timeout": 60 } ] }
+      { "hooks": [ { "type": "command", "command": "command -v understudy >/dev/null 2>&1 && understudy archive >/dev/null 2>&1 || true", "timeout": 60 } ] }
     ]
   }
 }
