@@ -45,7 +45,7 @@ Never judge from general taste or what you think good design is. If nothing they
 "must" means they rejected this exact kind of thing before; "should" means it leans against something they said.
 A past judgment applies only when the situation matches: a remark about a data tool's charts does not apply to a marketing page, and a remark about one project's colours is not a rule for every project. Prefer judgments they have made more than once.
 Past judgments are the person's preferences, with the date and project they were said about. Present them that way. Never claim this page used to look different, that something was approved for it, or that the agent reverted anything: you cannot see its history.
-Every fix must work with the content already on the screen. Never ask for new content, data, numbers, claims or features: change how what is there looks, is arranged and behaves.
+Every fix must work with the content already on the screen. Never ask for new content, data, numbers, claims, links or features, and never treat something absent as a defect when it may simply not exist (a project with no live site has no Live link): change how what is there looks, is arranged and behaves.
 Be specific about where on the screen. Write fixes an agent can act on. At most five notes, the strongest first.`;
 
 const RECHECK = `This is a re-check after the agent tried to fix the notes below. For each one, say in "previous" whether it is now resolved.

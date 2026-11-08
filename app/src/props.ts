@@ -92,14 +92,26 @@ export function createCueBox(room: Room) {
   const box = new THREE.Group(); box.position.set(rightX + PW / 2 + .72, .95, 0); box.rotation.z = -.06; scene.add(box);
   const shell = new THREE.Mesh(new THREE.BoxGeometry(.78, 1.05, .3), M.crackle); shell.position.z = .15; shell.castShadow = shell.receiveShadow = true; box.add(shell);
   for (const [x, y] of [[-.32, .45], [.32, .45], [-.32, -.45], [.32, -.45]]) { const s = new THREE.Mesh(new THREE.CylinderGeometry(.025, .025, .015, 16), M.nickel); s.rotation.x = Math.PI / 2; s.position.set(x, y, .305); box.add(s); }
+  // A lamp is a glass dome over a bulb. Lit, the glass shows its own colour at full strength:
+  // it is kept out of tone mapping, which would otherwise wash a bright red toward orange-white.
   function lamp(on: string, off: string, y: number) {
     const bezel = new THREE.Mesh(new THREE.TorusGeometry(.13, .03, 16, 40), M.nickel); bezel.position.set(0, y, .31); box.add(bezel);
-    const mat = new THREE.MeshPhysicalMaterial({ color: off, roughness: .15, emissive: on, emissiveIntensity: 0, clearcoat: 1 });
-    const lens = new THREE.Mesh(new THREE.SphereGeometry(.12, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2), mat); lens.rotation.x = Math.PI / 2; lens.position.set(0, y, .3); box.add(lens);
-    const light = new THREE.PointLight(on, 0, 1.6, 2); light.position.set(0, y, .55); box.add(light);
-    return (v: boolean) => { mat.emissiveIntensity = v ? 2.2 : 0; mat.color.set(v ? on : off); light.intensity = v ? 1.3 : 0; };
+    const dark = new THREE.MeshPhysicalMaterial({ color: off, roughness: .12, clearcoat: 1, clearcoatRoughness: .05 });
+    // lit, the crown of the dome is brightest and the rim deepest, as with a bulb behind coloured glass
+    const geo = new THREE.SphereGeometry(.12, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2);
+    const crown = new THREE.Color(on), rim = new THREE.Color(on).multiplyScalar(.42);
+    const pos = geo.attributes.position, cols = new Float32Array(pos.count * 3), tint = new THREE.Color();
+    for (let i = 0; i < pos.count; i++) { const h = Math.max(0, pos.getY(i) / .12); tint.copy(rim).lerp(new THREE.Color(on), Math.min(1, h * 1.6)).lerp(crown, Math.max(0, h - .55) / .45); cols.set([tint.r, tint.g, tint.b], i * 3); }
+    geo.setAttribute('color', new THREE.BufferAttribute(cols, 3));
+    const lit = new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: false });
+    const lens = new THREE.Mesh<THREE.BufferGeometry, THREE.Material>(geo, dark); lens.rotation.x = Math.PI / 2; lens.position.set(0, y, .3); box.add(lens);
+    // a glint on the lit glass, so it still reads as a dome
+    const glint = new THREE.Mesh(new THREE.CircleGeometry(.028, 20), new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: .55, toneMapped: false }));
+    glint.position.set(-.04, y + .045, .42); glint.visible = false; box.add(glint);
+    const light = new THREE.PointLight(on, 0, 1.4, 2); light.position.set(0, y, .55); box.add(light);
+    return { lens, set: (v: boolean) => { lens.material = v ? lit : dark; glint.visible = v; light.intensity = v ? 1.1 : 0; } };
   }
-  const standby = lamp('#ff3b22', '#3a0d08', .2), go = lamp('#3dff7a', '#0b2a14', -.2);
+  const standby = lamp('#e01b0e', '#2c0705', .2), go = lamp('#14c43c', '#061d0c', -.2);
   function dymo(text: string, y: number) {
     const c = canvas(256, 64); const k = c.getContext('2d')!; k.fillStyle = '#121212'; k.fillRect(0, 0, 256, 64);
     k.font = font(34, { family: SANS, weight: 500 }); k.fillStyle = '#e9e6de'; k.textAlign = 'center'; k.fillText(text, 128, 44);
@@ -108,7 +120,8 @@ export function createCueBox(room: Room) {
   dymo('Standby', -.01); dymo('Go', -.41);
   const cord = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([new THREE.Vector3(0, .52, .12), new THREE.Vector3(.1, 1, .05), new THREE.Vector3(-.4, 1.6, .04), new THREE.Vector3(.2, 2.4, .04), new THREE.Vector3(.1, 4.2, .04)]), 120, .035, 14), M.braid('#2a1b14'));
   cord.castShadow = true; box.add(cord);
-  return { box, set(state: 'standby' | 'go' | 'dark') { standby(state === 'standby'); go(state === 'go'); } };
+  let state: 'standby' | 'go' | 'dark' = 'dark';
+  return { box, lenses: { standby: standby.lens, go: go.lens }, get state() { return state; }, set(s: 'standby' | 'go' | 'dark') { state = s; standby.set(s === 'standby'); go.set(s === 'go'); } };
 }
 
 // Index tabs: card tabs stuck out from the right edge of the pages, one per section.

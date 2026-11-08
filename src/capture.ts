@@ -1,4 +1,5 @@
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { copyFileSync, existsSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { paths, ensureDirs } from './paths.ts';
@@ -7,7 +8,9 @@ import { paths, ensureDirs } from './paths.ts';
 export async function capture(target: string, o: { width?: number; height?: number; wait?: number } = {}): Promise<string> {
   ensureDirs();
   const id = randomUUID().slice(0, 12);
-  if (!/^https?:\/\//.test(target)) {
+  // a local page is opened in the browser like any other; a local image is taken as it is
+  if (/\.html?$/i.test(target) && existsSync(target)) target = pathToFileURL(resolve(target)).href;
+  if (!/^(https?|file):\/\//.test(target)) {
     if (!existsSync(target)) throw new Error(`no such file or page: ${target}`);
     const ext = target.toLowerCase().endsWith('.jpg') || target.toLowerCase().endsWith('.jpeg') ? 'jpg' : 'png';
     const out = join(paths.shots, `${id}.${ext}`); copyFileSync(target, out); return out;

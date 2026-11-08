@@ -17,7 +17,8 @@
     "serve": "tsx src/server.ts",
     "cli": "tsx src/cli.ts",
     "test": "node --no-warnings --import tsx --test test/*.test.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:ui": "tsx tools/ui-test.ts"
   },
   "dependencies": {
     "three": "^0.187.0",

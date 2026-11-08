@@ -191,7 +191,8 @@ export function install(id: string): { ok: boolean; path?: string; reason?: stri
   if (l.status !== 'ready') return { ok: false, reason: 'it has not passed two rehearsals in a row yet' };
   const p = json<Procedure>(l.procedure, null as any);
   const slug = p.name.replace(/[^a-z0-9-]/gi, '-').toLowerCase();
-  const dir = join(homedir(), '.claude', 'skills', slug); mkdirSync(dir, { recursive: true });
+  // UNDERSTUDY_SKILLS_DIR lets tests install somewhere harmless
+  const dir = join(process.env.UNDERSTUDY_SKILLS_DIR ?? join(homedir(), '.claude', 'skills'), slug); mkdirSync(dir, { recursive: true });
   const file = join(dir, 'SKILL.md');
   writeFileSync(file, `---\nname: ${slug}\ndescription: ${p.purpose} Use when ${p.when.replace(/^when\s+/i, '').replace(/\.$/, '')}.\n---\n\n# ${p.name}\n\nTaught to Understudy in ${basename(l.cwd)} on ${l.started_at.slice(0, 10)} and rehearsed until it passed twice in a row.\n\n## Steps\n\n${p.steps.map((s, i) => `${i + 1}. ${s}`).join('\n')}\n\n## Check that it worked\n\n\`\`\`sh\n${p.check}\n\`\`\`\n`);
   db.prepare(`update lessons set status = 'installed', installed = ? where id = ?`).run(file, id);

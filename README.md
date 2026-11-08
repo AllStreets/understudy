@@ -1,17 +1,33 @@
-<p align="center">
-  <img src="docs/media/banner.jpg" alt="Understudy: a stage manager's prompt book open on a walnut desk, typed notes and red pencil on the left page, a before and after pasted on the right, a cue light box beside it" />
-</p>
+<div align="center">
 
-<p align="center">
-  <a href="#what-it-learns">What it learns</a>&nbsp;&nbsp;&nbsp;
-  <a href="#holding-an-agent-to-it">Holding an agent to it</a>&nbsp;&nbsp;&nbsp;
-  <a href="#teaching-it-a-task">Teaching it a task</a>&nbsp;&nbsp;&nbsp;
-  <a href="#the-book">The book</a>&nbsp;&nbsp;&nbsp;
-  <a href="#local-and-claude">Local and Claude</a>&nbsp;&nbsp;&nbsp;
-  <a href="#set-it-up">Set it up</a>&nbsp;&nbsp;&nbsp;
-  <a href="#privacy">Privacy</a>&nbsp;&nbsp;&nbsp;
-  <a href="#whats-next">Next</a>
-</p>
+<img src="docs/media/banner.jpg" alt="Understudy: a stage manager's prompt book open on a walnut desk, typed notes and red pencil on the left page, a before and after pasted on the right, a cue light box beside it" width="100%"/>
+
+&nbsp;
+
+<a href="#set-it-up"><img alt="install" src="https://img.shields.io/badge/install-%2Fplugin_marketplace_add_AllStreets%2Funderstudy-B0301F?style=for-the-badge&labelColor=14110d"/></a>
+<img alt="learns from" src="https://img.shields.io/badge/learns_from-your_Claude_Code_sessions-1F8A3A?style=for-the-badge&labelColor=14110d"/>
+<br/>
+<img alt="a check" src="https://img.shields.io/badge/a_check-about_4_cents-1F8A3A?style=for-the-badge&labelColor=14110d"/>
+<img alt="runs" src="https://img.shields.io/badge/runs-on_your_Mac-B0301F?style=for-the-badge&labelColor=14110d"/>
+<img alt="tests" src="https://img.shields.io/badge/tests-7_engine_%C2%B7_25_in_the_browser-1F8A3A?style=for-the-badge&labelColor=14110d"/>
+<a href="LICENSE"><img alt="license" src="https://img.shields.io/badge/license-MIT-B0301F?style=for-the-badge&labelColor=14110d"/></a>
+<br/>
+<img alt="engine" src="https://img.shields.io/badge/engine-TypeScript_%C2%B7_Node_22_%C2%B7_node%3Asqlite-8a7f6e?style=flat-square&labelColor=14110d"/>
+<img alt="book" src="https://img.shields.io/badge/the_book-three.js_%C2%B7_Vite-8a7f6e?style=flat-square&labelColor=14110d"/>
+<br/>
+<img alt="local models" src="https://img.shields.io/badge/local-Ollama_%C2%B7_nomic--embed--text_%C2%B7_qwen2.5vl-8a7f6e?style=flat-square&labelColor=14110d"/>
+<img alt="claude" src="https://img.shields.io/badge/judge-Claude,_through_your_Claude_Code-8a7f6e?style=flat-square&labelColor=14110d"/>
+
+&nbsp;
+
+<a href="#what-it-learns"><kbd> &nbsp; <strong>What it learns</strong> &nbsp; </kbd></a> &nbsp;
+<a href="#holding-an-agent-to-it"><kbd> &nbsp; <strong>Holding an agent to it</strong> &nbsp; </kbd></a> &nbsp;
+<a href="#teaching-it-a-task"><kbd> &nbsp; <strong>Teaching it a task</strong> &nbsp; </kbd></a> &nbsp;
+<a href="#the-book"><kbd> &nbsp; <strong>The book</strong> &nbsp; </kbd></a> &nbsp;
+<a href="#set-it-up"><kbd> &nbsp; <strong>Set it up</strong> &nbsp; </kbd></a> &nbsp;
+<a href="#how-its-tested"><kbd> &nbsp; <strong>How it's tested</strong> &nbsp; </kbd></a>
+
+</div>
 
 <br />
 
@@ -134,6 +150,16 @@ To try it without any history of your own, build the sample and open the book on
 UNDERSTUDY_HOME=$PWD/.understudy-local/sample npx tsx tools/sample.ts
 UNDERSTUDY_HOME=$PWD/.understudy-local/sample UNDERSTUDY_PORT=4732 understudy serve
 ```
+
+## How it's tested
+
+```sh
+npm test                    # the engine: mining, the hook, undo, teaching, the rehearsal allowlist
+npm run test:ui             # the book, in a real browser against a real server
+UNDERSTUDY_HOME=<folder> tools/e2e.sh <scratch>   # a real Claude Code agent under the hook
+```
+
+The browser test runs on a throwaway copy of the sample data and installs skills into a temporary folder. It opens every section, lifts a print and puts it back, ticks Keep it, Not quite and Undo fix (and checks the fix really came out of a git repository), picks a calibration pair and checks it became a judgment, lets a rehearsed task go on and checks the skill file exists, turns pages by arrow key and by click, and confirms a write without the header is refused. It also measures the cue light: with a call waiting, Standby must read red and Go dark; once kept or installed, Go must read green and Standby dark.
 
 ## Privacy
 

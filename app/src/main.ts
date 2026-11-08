@@ -186,7 +186,8 @@ function where(name: string): { x: number; y: number } | null {
   const hit = current.hits.find(h => h.id === name);
   if (hit) { const sheet = hit.side === 'left' ? binder.left : binder.right; const u = ((hit.x0 + hit.x1) / 2) / CW, w = ((hit.y0 + hit.y1) / 2) / CH;
     v.set((u - .5) * 2.1, (.5 - w) * 2.97, .01); sheet.localToWorld(v); return project(); }
+  if (name === 'lamp:standby' || name === 'lamp:go') { cuebox.lenses[name === 'lamp:go' ? 'go' : 'standby'].getWorldPosition(v); return project(); }
   if (name === 'next') { v.set(.85, -.6, .01); binder.right.localToWorld(v); return project(); }
   return null;
 }
-(window as any).understudy = { where, go, hold: (t: number | null) => binder.hold(t), get at() { return at; }, book: () => book.map(b => b.section), close: (s: 'left' | 'right' | null) => { close = s; frame(); } };
+(window as any).understudy = { where, go, lamp: () => cuebox.state, key: () => current.key, hold: (t: number | null) => binder.hold(t), get at() { return at; }, book: () => book.map(b => b.section), close: (s: 'left' | 'right' | null) => { close = s; frame(); } };
