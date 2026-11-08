@@ -86,6 +86,21 @@ export function createPrints(room: Room) {
   return { group, set, tick, pick, toggle, get lifted() { return prints.some(p => p.userData.target > 0); }, get list() { return prints; } };
 }
 
+// The frame is tone mapped with ACES at the end, which bleeds other channels into a bright
+// pure colour (a pure green comes out minty). For the lamps, run the curve backwards: find
+// the colour that ACES will turn into the one wanted. Values may go below zero, which a
+// vertex colour carries through to the final pass.
+const ACES_IN = new THREE.Matrix3().set(0.59719, 0.35458, 0.04823, 0.07600, 0.90834, 0.01566, 0.02840, 0.13383, 0.83777);
+const ACES_OUT = new THREE.Matrix3().set(1.60475, -0.53108, -0.07367, -0.10208, 1.10813, -0.00605, -0.00327, -0.07276, 1.07602);
+function unTonemap(want: THREE.Color, exposure = 1): THREE.Color {
+  const v = new THREE.Vector3(want.r, want.g, want.b).applyMatrix3(ACES_OUT.clone().invert());
+  // invert y = (x(x + a) - b) / (x(c x + d) + e) for x: a quadratic in x
+  const a = .0245786, b = .000090537, c = .983729, d = .4329510, e = .238081;
+  const inv = (y: number) => { y = Math.min(Math.max(y, 0), .985); const A = 1 - y * c, B = a - y * d, C = -b - y * e; return (-B + Math.sqrt(B * B - 4 * A * C)) / (2 * A); };
+  v.set(inv(v.x), inv(v.y), inv(v.z)).applyMatrix3(ACES_IN.clone().invert()).multiplyScalar(.6 / exposure);
+  return new THREE.Color(v.x, v.y, v.z);
+}
+
 // The cue light box: crackle-black steel, red Standby, green Go, a braided cord off the desk.
 export function createCueBox(room: Room) {
   const { scene, M, tex } = room;
@@ -101,7 +116,7 @@ export function createCueBox(room: Room) {
     const geo = new THREE.SphereGeometry(.12, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2);
     const crown = new THREE.Color(on), rim = new THREE.Color(on).multiplyScalar(.42);
     const pos = geo.attributes.position, cols = new Float32Array(pos.count * 3), tint = new THREE.Color();
-    for (let i = 0; i < pos.count; i++) { const h = Math.max(0, pos.getY(i) / .12); tint.copy(rim).lerp(new THREE.Color(on), Math.min(1, h * 1.6)).lerp(crown, Math.max(0, h - .55) / .45); cols.set([tint.r, tint.g, tint.b], i * 3); }
+    for (let i = 0; i < pos.count; i++) { const h = Math.max(0, pos.getY(i) / .12); tint.copy(rim).lerp(crown, Math.min(1, h * 1.6)); const t = unTonemap(tint); cols.set([t.r, t.g, t.b], i * 3); }
     geo.setAttribute('color', new THREE.BufferAttribute(cols, 3));
     const lit = new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: false });
     const lens = new THREE.Mesh<THREE.BufferGeometry, THREE.Material>(geo, dark); lens.rotation.x = Math.PI / 2; lens.position.set(0, y, .3); box.add(lens);
@@ -111,7 +126,7 @@ export function createCueBox(room: Room) {
     const light = new THREE.PointLight(on, 0, 1.4, 2); light.position.set(0, y, .55); box.add(light);
     return { lens, set: (v: boolean) => { lens.material = v ? lit : dark; glint.visible = v; light.intensity = v ? 1.1 : 0; } };
   }
-  const standby = lamp('#e01b0e', '#2c0705', .2), go = lamp('#14c43c', '#061d0c', -.2);
+  const standby = lamp('#e01b0e', '#2c0705', .2), go = lamp('#00c832', '#061d0c', -.2);
   function dymo(text: string, y: number) {
     const c = canvas(256, 64); const k = c.getContext('2d')!; k.fillStyle = '#121212'; k.fillRect(0, 0, 256, 64);
     k.font = font(34, { family: SANS, weight: 500 }); k.fillStyle = '#e9e6de'; k.textAlign = 'center'; k.fillText(text, 128, 44);

@@ -56,7 +56,7 @@ async function colour(name: string): Promise<[number, number, number]> {
 // a picture of the cue box in each state, for a person to look at as well
 const snapLamps = async (label: string) => { const p = (await u<{ x: number; y: number }>('understudy.where("lamp:standby")'))!; await page.screenshot({ path: join(work, `lamps-${label}.png`), clip: { x: p.x - 90, y: p.y - 70, width: 180, height: 220 } }); };
 const isRed = ([r, g, b]: number[]) => r > 150 && r > g * 2.2 && r > b * 2.2;
-const isGreen = ([r, g, b]: number[]) => g > 120 && g > r * 1.8 && g > b * 1.6;
+const isGreen = ([r, g, b]: number[]) => g > 150 && g > r * 2.2 && g > b * 2.2;
 const isDark = ([r, g, b]: number[]) => Math.max(r, g, b) < 110;
 
 try {
