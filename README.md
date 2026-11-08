@@ -169,6 +169,7 @@ Everything stays in `~/Library/Application Support/Understudy`: the archive, the
 
 The design document is in [docs/specs](docs/specs/2026-11-07-understudy-design.md). Still to build:
 
+- **Untracked files in rehearsals**: a rehearsal's copy is rolled back to the last commit plus your uncommitted edits, so files you had never added to git when the lesson began are left out of it.
 - **Teaching by hand**: tasks done outside Claude Code (in the terminal, an editor or a browser) can't be watched yet.
 - **A local scorer** trained on your Keep and Not quite calls, so more of the judging moves onto your Mac over time.
 
